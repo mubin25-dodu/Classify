@@ -104,6 +104,58 @@ function updateExamCountdowns() {
     });
 }
 
+function sendNotification(title, message) {
+    if (Notification.permission === "granted") {
+        new Notification(title, { body: message });
+    } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") {
+                new Notification(title, { body: message });
+            }
+        });
+    }
+}
+
+function forceNotification(title, message) {
+    new Notification(title, { body: message });
+}
+
+function scheduleNotifications() {
+    const now = new Date();
+
+    // Class notifications
+    classes.forEach(cls => {
+        const [startHour, startMinute] = cls.startTime.split(":").map(Number);
+        const classTime = new Date();
+        classTime.setHours(startHour, startMinute, 0, 0);
+
+        const timeDiff = classTime - now;
+        if (timeDiff > 0 && timeDiff <= 10 * 60 * 1000) { // 10 minutes before
+            forceNotification("Class Reminder", `Your class (${cls.course}) starts in 10 minutes.`);
+        }
+    });
+
+    // Exam notifications
+    exams.forEach(exam => {
+        const examDateTime = new Date(`${exam.date}T${exam.time}`);
+
+        const timeDiff = examDateTime - now;
+        if (timeDiff > 0 && timeDiff <= 24 * 60 * 60 * 1000) { // 1 day before
+            forceNotification("Exam Reminder", `Your exam (${exam.course}) is tomorrow.`);
+        } else if (timeDiff > 0 && timeDiff <= 30 * 60 * 1000) { // 30 minutes before
+            forceNotification("Exam Reminder", `Your exam (${exam.course}) starts in 30 minutes.`);
+        }
+    });
+}
+
+// Request notification permission on page load
+if ("Notification" in window) {
+    Notification.requestPermission();
+}
+
+// Schedule notifications every minute
+setInterval(scheduleNotifications, 60 * 1000);
+
 setInterval(updateExamCountdowns, 1000);
 renderRoutine();
 renderExamList();
