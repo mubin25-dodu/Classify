@@ -105,3 +105,17 @@ a:hover {
 .delete-icon:hover {
     transform: scale(1.2);
 }
+
+button.delete-class-button {
+    background-color: #ff6f61; /* Bright red */
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
