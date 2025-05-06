@@ -9,9 +9,20 @@ function renderRoutine() {
     routineContainer.innerHTML = ''; // Clear existing routine
 
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayIndex = new Date().getDay();
 
-    daysOfWeek.forEach(day => {
+    // Reorder days to start with today
+    const orderedDays = [...daysOfWeek.slice(todayIndex), ...daysOfWeek.slice(0, todayIndex)];
+
+    orderedDays.forEach(day => {
         const dayClasses = classes.filter(cls => cls.day === day);
+
+        // Sort classes by start time
+        dayClasses.sort((a, b) => {
+            const [aHour, aMinute] = a.startTime.split(':').map(Number);
+            const [bHour, bMinute] = b.startTime.split(':').map(Number);
+            return aHour * 60 + aMinute - (bHour * 60 + bMinute);
+        });
 
         if (dayClasses.length > 0) {
             const dayColumn = document.createElement('div');
@@ -197,6 +208,7 @@ function renderExamList() {
             <p><strong>Course:</strong> ${exam.course}</p>
             <p><strong>Date:</strong> ${exam.date}</p>
             <p><strong>Time:</strong> ${exam.time}</p>
+            ${exam.notes ? `<p><strong>Notes:</strong> ${exam.notes}</p>` : ''}
             <p class="exam-countdown">Loading countdown...</p>
             <button class="btn btn-danger btn-sm" onclick="deleteExam(${index})">Delete</button>
         `;
@@ -318,8 +330,9 @@ document.getElementById('exam-form').addEventListener('submit', function(event) 
     const date = document.getElementById('exam-date').value;
     const time = document.getElementById('exam-time').value;
     const course = document.getElementById('exam-course').value;
+    const notes = document.getElementById('exam-notes').value; // Capture notes field
 
-    const newExam = { date, time, course };
+    const newExam = { date, time, course, notes }; // Include notes in the exam object
     exams.push(newExam);
 
     saveExamsToLocalStorage(); // Save updated exams to localStorage
