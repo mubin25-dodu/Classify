@@ -405,6 +405,13 @@ setInterval(function() {
     });
 }, 30000);
 
+// Force push notification for testing (with vibration for mobile)
+window.forcePushNotification = function() {
+    sendReminder('Test Notification', 'This is a test push notification from Classify!');
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    alert('Test notification sent (if permission granted). If you are on a phone, you should also feel a vibration.');
+};
+
 setInterval(displayClosestExamOnMainScreen, 1000); // Update closest exam every second
 
 document.getElementById('routine-form').addEventListener('submit', function(event) {
@@ -673,16 +680,14 @@ function renderProgressDashboard() {
     weekEnd.setDate(weekStart.getDate() + 6);
     let weekClasses = 0, weekExams = 0, weekClassesDone = 0, weekExamsDone = 0;
     classes.forEach(cls => {
+        weekClasses++;
         const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const classIdx = daysOfWeek.indexOf(cls.day);
         const classDate = new Date(weekStart);
         classDate.setDate(weekStart.getDate() + classIdx);
         const [h, m] = cls.startTime.split(':').map(Number);
         classDate.setHours(h, m, 0, 0);
-        if (classDate >= weekStart && classDate <= weekEnd) {
-            weekClasses++;
-            if (classDate < now) weekClassesDone++;
-        }
+        if (classDate < now) weekClassesDone++;
     });
     exams.forEach(exam => {
         const examDate = new Date(`${exam.date}T${exam.time}`);
@@ -691,21 +696,9 @@ function renderProgressDashboard() {
             if (examDate < now) weekExamsDone++;
         }
     });
-    // Monthly stats
+    // Monthly exam stats
     const month = now.getMonth();
-    let monthClasses = 0, monthExams = 0, monthClassesDone = 0, monthExamsDone = 0;
-    classes.forEach(cls => {
-        const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-        const classIdx = daysOfWeek.indexOf(cls.day);
-        const classDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        classDate.setDate(classDate.getDate() + classIdx);
-        const [h, m] = cls.startTime.split(':').map(Number);
-        classDate.setHours(h, m, 0, 0);
-        if (classDate.getMonth() === month) {
-            monthClasses++;
-            if (classDate < now) monthClassesDone++;
-        }
-    });
+    let monthExams = 0, monthExamsDone = 0;
     exams.forEach(exam => {
         const examDate = new Date(`${exam.date}T${exam.time}`);
         if (examDate.getMonth() === month) {
@@ -717,7 +710,7 @@ function renderProgressDashboard() {
         <div style="background:#181828;border-radius:10px;padding:16px 18px;margin-bottom:10px;box-shadow:0 2px 8px #00d4ff22;">
             <b>Progress Dashboard</b><br>
             <span style='color:#00d4ff;'>This week:</span> ${weekClassesDone}/${weekClasses} classes, ${weekExamsDone}/${weekExams} exams completed<br>
-            <span style='color:#00d4ff;'>This month:</span> ${monthClassesDone}/${monthClasses} classes, ${monthExamsDone}/${monthExams} exams completed
+            <span style='color:#00d4ff;'>This month:</span> ${monthExamsDone}/${monthExams} exams completed
         </div>
     `;
 }
