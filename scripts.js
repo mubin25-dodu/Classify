@@ -37,6 +37,7 @@ function renderRoutine() {
                     <p><b>Time:</b> ${cls.startTime} - ${cls.endTime}</p>
                     <p><b>Room:</b> ${cls.room}</p>
                     <p><b>Type:</b> ${cls.type}</p>
+                    <span class="class-timer" data-time="${cls.startTime}" data-day="${cls.day}" style="display:none"></span>
                     <button class='btn btn-warning btn-sm me-2 edit-class-btn'>Edit</button>
                     <button class='btn btn-danger btn-sm delete-class-button'>Delete</button>
                 `;
@@ -200,10 +201,15 @@ function renderExamList() {
         return;
     }
 
-    // Sort exams by date and time
+    // Sort exams by date and time, expired exams at the bottom
     exams.sort((a, b) => {
+        const now = new Date();
         const dateA = new Date(`${a.date}T${a.time}`);
         const dateB = new Date(`${b.date}T${b.time}`);
+        const isExpiredA = dateA < now;
+        const isExpiredB = dateB < now;
+        if (isExpiredA && !isExpiredB) return 1;
+        if (!isExpiredA && isExpiredB) return -1;
         return dateA - dateB;
     });
 
