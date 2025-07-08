@@ -50,13 +50,13 @@ body.light-theme {
         margin-bottom: 18px !important;
         letter-spacing: 2px;
     }
-    #closest-exam, #countdown {
+    #closest-exam {
         font-size: 1.1rem !important;
     }
     .container {
         padding: 8px 2px;
     }
-    #c{
+    #c {
         font-size: 1.2rem;
         margin-bottom: 8px;
     }
@@ -67,6 +67,37 @@ body.light-theme {
     .exam-item {
         max-width: 98vw;
         font-size: 0.95rem;
+    }
+    .class-progress-row { 
+        max-width: 100%; 
+        gap: 6px; 
+        padding: 6px 4px; 
+    }
+    #class-progress-time { 
+        font-size: 0.95rem; 
+        min-width: 50px; 
+    }
+    .stylish-progress { 
+        height: 10px; 
+    }
+    .current-class-info, .current-exam-info { 
+        font-size: 0.97rem; 
+        padding: 6px 6px 3px 6px; 
+    }
+    .container { 
+        padding: 0px 8px 20px 10px; 
+    }
+    #progress-dashboard { 
+        font-size: 0.98rem; 
+        padding: 10px 6px; 
+    }
+    #undo-snackbar { 
+        font-size: 1rem; 
+        padding: 10px 8px; 
+    }
+    #settings-btn, #help-btn { 
+        min-width: 70px; 
+        font-size: 0.95rem; 
     }
 }
 
@@ -195,18 +226,6 @@ a:hover {
 
 body.light-theme .exam-countdown {
     color: #1976d2 !important;
-}
-
-.delete-icon {
-    cursor: pointer;
-    color: #ff6f61;
-    font-size: 1.2rem;
-    align-self: flex-end;
-    transition: transform 0.2s;
-}
-
-delete-icon:hover {
-    transform: scale(1.2);
 }
 
 button.delete-class-button,
@@ -341,7 +360,7 @@ button.edit-class-btn:hover {
     font-weight: 400;
 }
 
-#closest-exam, #custom-countdown-widget, #countdown {
+#closest-exam, #custom-countdown-widget {
     background: #23233a;
     color: #00d4ff;
     border-radius: 8px;
@@ -427,23 +446,52 @@ body.light-theme .modal-content {
     background: #fff;
     color: #222;
 }
+
 body.light-theme .modal-title {
     color: #1976d2;
-}
-@media (max-width: 600px) {
-    .class-progress-row { max-width: 100%; gap: 6px; padding: 6px 4px; }
-    #class-progress-time { font-size: 0.95rem; min-width: 50px; }
-    .stylish-progress { height: 10px; }
-    .current-class-info, .current-exam-info { font-size: 0.97rem; padding: 6px 6px 3px 6px; }
-    .container { padding: 0px 8px 20px 10px; }
-    #progress-dashboard { font-size: 0.98rem; padding: 10px 6px; }
-    #undo-snackbar { font-size: 1rem; padding: 10px 8px; }
-    #settings-btn, #help-btn { min-width: 70px; font-size: 0.95rem; }
 }
 
 #exam-list {
     display: flex;
     flex-direction: column;
     align-items: center;
+}
+
+/* Course Search Styles */
+#course-results {
+    background: #23233a;
+    border: 1px solid #00d4ff33;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px #00d4ff22;
+}
+
+.course-result-item {
+    transition: background-color 0.2s ease;
+}
+
+.course-result-item:hover {
+    background: #2a2a3b !important;
+}
+
+.course-result-item:last-child {
+    border-bottom: none !important;
+}
+
+body.light-theme #course-results {
+    background: #fff;
+    border: 1px solid #ddd;
+}
+
+body.light-theme .course-result-item {
+    background: #fff !important;
+    color: #222 !important;
+}
+
+body.light-theme .course-result-item:hover {
+    background: #f5f5f5 !important;
+}
+
+body.light-theme .course-result-item div:first-child {
+    color: #1976d2 !important;
 }
 

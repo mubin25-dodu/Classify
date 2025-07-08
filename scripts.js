@@ -1,4 +1,6 @@
-const classes = JSON.parse(localStorage.getItem('classes')) || []; // Load routine from localStorage or start with an empty array
+const classes = JSON.parse(localStorage.getItem('classes')) || [];
+const exams = JSON.parse(localStorage.getItem('exams')) || [];
+const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function saveClassesToLocalStorage() {
     localStorage.setItem('classes', JSON.stringify(classes));
@@ -6,18 +8,13 @@ function saveClassesToLocalStorage() {
 
 function renderRoutine() {
     const routineContainer = document.querySelector('.routine-container');
-    routineContainer.innerHTML = ''; // Clear existing routine
+    routineContainer.innerHTML = '';
 
-    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const todayIndex = new Date().getDay();
-
-    // Reorder days to start with today
-    const orderedDays = [...daysOfWeek.slice(todayIndex), ...daysOfWeek.slice(0, todayIndex)];
+    const orderedDays = [...DAYS_OF_WEEK.slice(todayIndex), ...DAYS_OF_WEEK.slice(0, todayIndex)];
 
     orderedDays.forEach(day => {
         const dayClasses = classes.filter(cls => cls.day === day);
-
-        // Sort classes by start time
         dayClasses.sort((a, b) => {
             const [aHour, aMinute] = a.startTime.split(':').map(Number);
             const [bHour, bMinute] = b.startTime.split(':').map(Number);
@@ -57,40 +54,6 @@ function renderRoutine() {
     });
 }
 
-function getNextClass() {
-    const now = new Date();
-    const today = now.toLocaleString('en-US', { weekday: 'long' });
-    const currentTime = now.getHours() * 60 + now.getMinutes();
-
-    let nextClass = null;
-    let minTimeDifference = Infinity;
-
-    classes.forEach(cls => {
-        const [startHour, startMinute] = cls.startTime.split(':').map(Number);
-        const classTime = startHour * 60 + startMinute;
-
-        if (cls.day === today && classTime > currentTime && classTime - currentTime < minTimeDifference) {
-            nextClass = cls;
-            minTimeDifference = classTime - currentTime;
-        }
-    });
-
-    return nextClass;
-}
-
-function updateCountdown() {
-    const nextClass = getNextClass();
-    const countdownElement = document.getElementById('countdown');
-
-    if (!nextClass) {
-        countdownElement.textContent = 'No more classes today!';
-        return;
-    }
-
-    // Only show 'No more classes today!' and do not display next class details
-    countdownElement.textContent = '';
-}
-
 function updateClassTimers() {
     const timers = document.querySelectorAll('.class-timer');
     const now = new Date();
@@ -98,13 +61,12 @@ function updateClassTimers() {
     timers.forEach(timer => {
         const classTime = timer.getAttribute('data-time');
         const classDay = timer.getAttribute('data-day');
-        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const currentDayIndex = now.getDay();
-        const classDayIndex = daysOfWeek.indexOf(classDay);
+        const classDayIndex = DAYS_OF_WEEK.indexOf(classDay);
 
         let dayDifference = classDayIndex - currentDayIndex;
         if (dayDifference < 0 || (dayDifference === 0 && isClassOverToday(classTime))) {
-            dayDifference += 7; // Move to the next week
+            dayDifference += 7;
         }
 
         const [hour, minute] = classTime.split(':').map(Number);
@@ -127,13 +89,11 @@ function isClassOverToday(classTime) {
     const [hour, minute] = classTime.split(':').map(Number);
     const classToday = new Date(now);
     classToday.setHours(hour, minute, 0, 0);
-
     return now > classToday;
 }
 
 function highlightNextClass() {
     const now = new Date();
-    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const currentDayIndex = now.getDay();
     const currentTime = now.getHours() * 60 + now.getMinutes();
 
@@ -143,11 +103,11 @@ function highlightNextClass() {
     document.querySelectorAll('.class-card').forEach(card => {
         const classTime = card.querySelector('.class-timer').getAttribute('data-time');
         const classDay = card.querySelector('.class-timer').getAttribute('data-day');
-        const classDayIndex = daysOfWeek.indexOf(classDay);
+        const classDayIndex = DAYS_OF_WEEK.indexOf(classDay);
 
         let dayDifference = classDayIndex - currentDayIndex;
         if (dayDifference < 0 || (dayDifference === 0 && isClassOverToday(classTime))) {
-            dayDifference += 7; // Move to the next week
+            dayDifference += 7;
         }
 
         const [hour, minute] = classTime.split(':').map(Number);
@@ -161,7 +121,6 @@ function highlightNextClass() {
     });
 
     document.querySelectorAll('.class-card').forEach(card => card.classList.remove('highlight'));
-
     if (nextClassElement) {
         nextClassElement.classList.add('highlight');
     }
@@ -175,7 +134,6 @@ function updateExamCountdowns() {
         const examDate = exams[index].date;
         const examTime = exams[index].time;
         const examDateTime = new Date(`${examDate}T${examTime}`);
-
         const diff = examDateTime - now;
 
         if (diff <= 0) {
@@ -194,14 +152,13 @@ function updateExamCountdowns() {
 
 function renderExamList() {
     const examListContainer = document.getElementById('exam-list');
-    examListContainer.innerHTML = ''; // Clear existing list
+    examListContainer.innerHTML = '';
 
     if (exams.length === 0) {
         examListContainer.innerHTML = '<p>No exams scheduled.</p>';
         return;
     }
 
-    // Sort exams by date and time, expired exams at the bottom
     exams.sort((a, b) => {
         const now = new Date();
         const dateA = new Date(`${a.date}T${a.time}`);
@@ -240,44 +197,6 @@ function renderExamList() {
     updateExamCountdowns();
 }
 
-function displayClosestExam() {
-    const now = new Date();
-    let closestExam = null;
-    let minTimeDifference = Infinity;
-
-    exams.forEach(exam => {
-        const examDateTime = new Date(`${exam.date}T${exam.time}`);
-        const timeDifference = examDateTime - now;
-
-        if (timeDifference > 0 && timeDifference < minTimeDifference) {
-            closestExam = exam;
-            minTimeDifference = timeDifference;
-        }
-    });
-
-    const countdownElement = document.getElementById('countdown');
-
-    if (closestExam) {
-        const examDateTime = new Date(`${closestExam.date}T${closestExam.time}`);
-        const days = Math.floor(minTimeDifference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((minTimeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((minTimeDifference % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((minTimeDifference % (1000 * 60)) / 1000);
-
-        countdownElement.innerHTML = `
-            <div style="background-color: #3a3a4b; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                <h2 style="color: #ff6f61;">Closest Exam</h2>
-                <p><strong>Course:</strong> ${closestExam.course}</p>
-                <p><strong>Date:</strong> ${closestExam.date}</p>
-                <p><strong>Time:</strong> ${closestExam.time}</p>
-                <p style="font-weight: bold; color: #00d4ff;">Starts in: ${days}d ${hours}h ${minutes}m ${seconds}s</p>
-            </div>
-        `;
-    } else {
-        countdownElement.textContent = 'No upcoming exams!';
-    }
-}
-
 function displayClosestExamOnMainScreen() {
     const now = new Date();
     let closestExam = null;
@@ -307,24 +226,14 @@ function displayClosestExamOnMainScreen() {
     }
 }
 
-function deleteExam(index) {
-    const deletedExam = exams.splice(index, 1)[0]; // Remove the exam at the given index
-    saveExamsToLocalStorage(); // Save updated exams to localStorage
-    renderExamList(); // Re-render the exam list
-    showUndoSnackbar('Exam', deletedExam, index);
-}
-
-// CUSTOM COUNTDOWN WIDGET (feature 7)
 function updateCustomCountdownWidget() {
     const widget = document.getElementById('custom-countdown-widget');
-    // Show next class or next exam, whichever is sooner
     const now = new Date();
     let nextClass = null, nextExam = null, minClassDiff = Infinity, minExamDiff = Infinity;
-    // Next class
+    
     classes.forEach(cls => {
-        const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const todayIdx = now.getDay();
-        const classIdx = daysOfWeek.indexOf(cls.day);
+        const classIdx = DAYS_OF_WEEK.indexOf(cls.day);
         let dayDiff = classIdx - todayIdx;
         if (dayDiff < 0 || (dayDiff === 0 && isClassOverToday(cls.startTime))) dayDiff += 7;
         const [h, m] = cls.startTime.split(':').map(Number);
@@ -332,14 +241,21 @@ function updateCustomCountdownWidget() {
         classDate.setDate(now.getDate() + dayDiff);
         classDate.setHours(h, m, 0, 0);
         const diff = classDate - now;
-        if (diff > 0 && diff < minClassDiff) { minClassDiff = diff; nextClass = cls; }
+        if (diff > 0 && diff < minClassDiff) { 
+            minClassDiff = diff; 
+            nextClass = cls; 
+        }
     });
-    // Next exam
+    
     exams.forEach(exam => {
         const examDateTime = new Date(`${exam.date}T${exam.time}`);
         const diff = examDateTime - now;
-        if (diff > 0 && diff < minExamDiff) { minExamDiff = diff; nextExam = exam; }
+        if (diff > 0 && diff < minExamDiff) { 
+            minExamDiff = diff; 
+            nextExam = exam; 
+        }
     });
+    
     let msg = '';
     if (minClassDiff < minExamDiff && nextClass) {
         const days = Math.floor(minClassDiff / (1000*60*60*24));
@@ -366,30 +282,26 @@ function updateCustomCountdownWidget() {
 }
 setInterval(updateCustomCountdownWidget, 1000);
 
-// RECURRING EVENTS (feature 5) - UI and logic for weekly recurring classes is already present.
-// For exams, recurrence is rare, so not implemented.
-// For classes, the routine already supports weekly recurrence by design.
-
-// NOTIFICATIONS/REMINDERS (feature 2)
 function requestNotificationPermission() {
     if ('Notification' in window && Notification.permission !== 'granted') {
         Notification.requestPermission();
     }
 }
-requestNotificationPermission();
+
 function sendReminder(title, body) {
     if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title, { body });
     }
 }
-// Remind 5 minutes before next class or exam
+
+requestNotificationPermission();
+
 setInterval(function() {
     const now = new Date();
-    // Next class
+    
     classes.forEach(cls => {
-        const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const todayIdx = now.getDay();
-        const classIdx = daysOfWeek.indexOf(cls.day);
+        const classIdx = DAYS_OF_WEEK.indexOf(cls.day);
         let dayDiff = classIdx - todayIdx;
         if (dayDiff < 0 || (dayDiff === 0 && isClassOverToday(cls.startTime))) dayDiff += 7;
         const [h, m] = cls.startTime.split(':').map(Number);
@@ -401,7 +313,7 @@ setInterval(function() {
             sendReminder('Class Reminder', `Upcoming class: ${cls.course} at ${cls.startTime} (${cls.room})`);
         }
     });
-    // Next exam
+    
     exams.forEach(exam => {
         const examDateTime = new Date(`${exam.date}T${exam.time}`);
         const diff = examDateTime - now;
@@ -411,19 +323,17 @@ setInterval(function() {
     });
 }, 30000);
 
-// Force push notification for testing (with vibration for mobile)
 window.forcePushNotification = function() {
     sendReminder('Test Notification', 'This is a test push notification from Classify!');
     if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     alert('Test notification sent (if permission granted). If you are on a phone, you should also feel a vibration.');
 };
 
-setInterval(displayClosestExamOnMainScreen, 1000); // Update closest exam every second
+setInterval(displayClosestExamOnMainScreen, 1000);
 
 document.getElementById('routine-form').addEventListener('submit', function(event) {
     event.preventDefault();
 
-    // Get all checked days from checkboxes
     const checkedDays = Array.from(document.querySelectorAll('#day-checkbox-group input[type="checkbox"]:checked')).map(cb => cb.value);
     const startTime = document.getElementById('start-time').value;
     const endTime = document.getElementById('end-time').value;
@@ -436,25 +346,21 @@ document.getElementById('routine-form').addEventListener('submit', function(even
         return;
     }
 
-    // Add a class for each checked day
     checkedDays.forEach(day => {
         const newClass = { day, startTime, endTime, course, type, room };
         classes.push(newClass);
     });
 
-    saveClassesToLocalStorage(); // Save updated routine to localStorage
-    renderRoutine(); // Re-render the routine
-
+    saveClassesToLocalStorage();
+    renderRoutine();
     document.getElementById('routine-form').reset();
 });
 
 document.getElementById('reset-button').addEventListener('click', function() {
     localStorage.removeItem('classes');
-    classes.length = 0; // Clear the classes array
-    renderRoutine(); // Re-render the routine
+    classes.length = 0;
+    renderRoutine();
 });
-
-const exams = JSON.parse(localStorage.getItem('exams')) || []; // Load exams from localStorage or start with an empty array
 
 function saveExamsToLocalStorage() {
     localStorage.setItem('exams', JSON.stringify(exams));
@@ -466,21 +372,20 @@ document.getElementById('exam-form').addEventListener('submit', function(event) 
     const date = document.getElementById('exam-date').value;
     const time = document.getElementById('exam-time').value;
     const course = document.getElementById('exam-course').value;
-    const notes = document.getElementById('exam-notes').value; // Capture notes field
+    const notes = document.getElementById('exam-notes').value;
 
-    const newExam = { date, time, course, notes }; // Include notes in the exam object
+    const newExam = { date, time, course, notes };
     exams.push(newExam);
 
-    saveExamsToLocalStorage(); // Save updated exams to localStorage
-    renderExamList(); // Re-render the exam list
-
+    saveExamsToLocalStorage();
+    renderExamList();
     document.getElementById('exam-form').reset();
 });
 
 document.getElementById('reset-exam-button').addEventListener('click', function() {
     localStorage.removeItem('exams');
-    exams.length = 0; // Clear the exams array
-    renderExamList(); // Re-render the exam list
+    exams.length = 0;
+    renderExamList();
 });
 
 document.querySelector('.routine-container').addEventListener('click', function(event) {
@@ -489,29 +394,28 @@ document.querySelector('.routine-container').addEventListener('click', function(
         const day = classCard.querySelector('.class-timer').getAttribute('data-day');
         const startTime = classCard.querySelector('.class-timer').getAttribute('data-time');
 
-        // Find the index of the class to delete
         const classIndex = classes.findIndex(cls => cls.day === day && cls.startTime === startTime);
 
         if (classIndex !== -1) {
-            const deletedClass = classes.splice(classIndex, 1)[0]; // Remove the class from the array
-            saveClassesToLocalStorage(); // Save updated classes to localStorage
-            renderRoutine(); // Re-render the routine
+            const deletedClass = classes.splice(classIndex, 1)[0];
+            saveClassesToLocalStorage();
+            renderRoutine();
             showUndoSnackbar('Class', deletedClass, classIndex);
         }
     }
 });
 
-// Track current class and exam
 function updateCurrentEventTracker() {
     const now = new Date();
     let currentClass = null;
     let classStart = null, classEnd = null;
+    
     classes.forEach(cls => {
-        const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
         const todayIdx = now.getDay();
-        const classIdx = daysOfWeek.indexOf(cls.day);
+        const classIdx = DAYS_OF_WEEK.indexOf(cls.day);
         let dayDiff = classIdx - todayIdx;
         if (dayDiff < 0) dayDiff += 7;
+        
         const [startH, startM] = cls.startTime.split(':').map(Number);
         const [endH, endM] = cls.endTime.split(':').map(Number);
         const start = new Date(now);
@@ -520,23 +424,23 @@ function updateCurrentEventTracker() {
         const end = new Date(now);
         end.setDate(now.getDate() + dayDiff);
         end.setHours(endH, endM, 0, 0);
+        
         if (now >= start && now <= end) {
             currentClass = cls;
             classStart = start;
             classEnd = end;
         }
     });
+    
     let currentExam = null;
-    let examStart = null, examEnd = null;
     exams.forEach(exam => {
         const start = new Date(`${exam.date}T${exam.time}`);
         const end = new Date(start.getTime() + 3*60*60*1000);
         if (now >= start && now <= end) {
             currentExam = exam;
-            examStart = start;
-            examEnd = end;
         }
     });
+    
     let tracker = document.getElementById('current-event-tracker');
     if (!tracker) {
         tracker = document.createElement('div');
@@ -544,13 +448,14 @@ function updateCurrentEventTracker() {
         tracker.style = 'text-align:left; margin-bottom:10px; font-weight:bold; color:#00d4ff;';
         document.querySelector('.container').insertBefore(tracker, document.querySelector('.routine-container'));
     }
+    
     let msg = '';
     if (!currentClass && !currentExam) {
         msg += `<div class="no-class-message">No more classes today!</div>`;
     }
+    
     if (currentClass) {
-        // Progress bar for class (show elapsed/total minutes to the left of the bar)
-        const total = Math.round((classEnd - classStart) / 60000); // total minutes
+        const total = Math.round((classEnd - classStart) / 60000);
         const elapsed = Math.round((now - classStart) / 60000);
         const percent = Math.min(100, Math.max(0, (elapsed / total) * 100));
         msg += `<div class="current-class-info">Current Class: <span>${currentClass.course}</span> <span class='class-time'>(${currentClass.startTime} - ${currentClass.endTime})</span> <span class='class-room'>in Room ${currentClass.room}</span></div>`;
@@ -559,14 +464,15 @@ function updateCurrentEventTracker() {
                `<div class='progress stylish-progress'>` +
                `<div class='progress-bar stylish-progress-bar' role='progressbar' style='width:${percent}%;'></div></div></div>`;
     }
+    
     if (currentExam) {
         msg += `<div class="current-exam-info">Current Exam: <span>${currentExam.course}</span> <span class='exam-time'>(${currentExam.date} ${currentExam.time})</span></div>`;
     }
+    
     tracker.innerHTML = msg;
 }
 setInterval(updateCurrentEventTracker, 1000);
 
-// Make all countdowns left aligned
 function updateCountdownLeftAlign() {
     const countdown = document.getElementById('countdown');
     if (countdown) countdown.style.textAlign = 'left';
@@ -577,10 +483,8 @@ function updateCountdownLeftAlign() {
 }
 updateCountdownLeftAlign();
 
-// === SETTINGS & ONBOARDING ===
 let reminderLeadTime = parseInt(localStorage.getItem('reminderLeadTime')) || 5;
 
-// Show onboarding/help modal on first visit
 if (!localStorage.getItem('classifyOnboarded')) {
     setTimeout(() => {
         const helpModal = new bootstrap.Modal(document.getElementById('helpModal'));
@@ -593,20 +497,22 @@ document.getElementById('help-btn').onclick = function() {
     const helpModal = new bootstrap.Modal(document.getElementById('helpModal'));
     helpModal.show();
 };
+
 document.getElementById('settings-btn').onclick = function() {
     document.getElementById('reminder-lead-time').value = reminderLeadTime;
     const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
     settingsModal.show();
 };
+
 document.getElementById('save-settings-btn').onclick = function() {
     reminderLeadTime = parseInt(document.getElementById('reminder-lead-time').value);
     localStorage.setItem('reminderLeadTime', reminderLeadTime);
     bootstrap.Modal.getInstance(document.getElementById('settingsModal')).hide();
 };
 
-// === UNDO SNACKBAR ===
 let undoTimeout = null;
 let lastDeleted = null;
+
 function showUndoSnackbar(type, data, index) {
     const snackbar = document.getElementById('undo-snackbar');
     snackbar.innerHTML = `${type} deleted. <button id='undo-btn' class='btn btn-sm btn-primary ms-2'>Undo</button>`;
@@ -631,7 +537,6 @@ function showUndoSnackbar(type, data, index) {
     };
 }
 
-// === INLINE EDITING ===
 function makeClassCardEditable(card, cls, idx) {
     card.innerHTML = `
         <input type='text' class='form-control mb-1' value='${cls.course}' id='edit-course-${idx}'>
@@ -656,6 +561,7 @@ function makeClassCardEditable(card, cls, idx) {
     };
     document.getElementById(`cancel-edit-${idx}`).onclick = function() { renderRoutine(); };
 }
+
 function makeExamItemEditable(item, exam, idx) {
     item.innerHTML = `
         <input type='text' class='form-control mb-1' value='${exam.course}' id='edit-exam-course-${idx}'>
@@ -676,25 +582,25 @@ function makeExamItemEditable(item, exam, idx) {
     document.getElementById(`cancel-exam-edit-${idx}`).onclick = function() { renderExamList(); };
 }
 
-// === PROGRESS DASHBOARD ===
 function renderProgressDashboard() {
     const now = new Date();
-    // Weekly stats
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay());
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
+    
     let weekClasses = 0, weekExams = 0, weekClassesDone = 0, weekExamsDone = 0;
+    
     classes.forEach(cls => {
         weekClasses++;
-        const daysOfWeek = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-        const classIdx = daysOfWeek.indexOf(cls.day);
+        const classIdx = DAYS_OF_WEEK.indexOf(cls.day);
         const classDate = new Date(weekStart);
         classDate.setDate(weekStart.getDate() + classIdx);
         const [h, m] = cls.startTime.split(':').map(Number);
         classDate.setHours(h, m, 0, 0);
         if (classDate < now) weekClassesDone++;
     });
+    
     exams.forEach(exam => {
         const examDate = new Date(`${exam.date}T${exam.time}`);
         if (examDate >= weekStart && examDate <= weekEnd) {
@@ -702,7 +608,7 @@ function renderProgressDashboard() {
             if (examDate < now) weekExamsDone++;
         }
     });
-    // Monthly exam stats
+    
     const month = now.getMonth();
     let monthExams = 0, monthExamsDone = 0;
     exams.forEach(exam => {
@@ -712,6 +618,7 @@ function renderProgressDashboard() {
             if (examDate < now) monthExamsDone++;
         }
     });
+    
     document.getElementById('progress-dashboard').innerHTML = `
         <div style="background:#181828;border-radius:10px;padding:16px 18px;margin-bottom:10px;box-shadow:0 2px 8px #00d4ff22;">
             <b>Progress Dashboard</b><br>
@@ -722,11 +629,226 @@ function renderProgressDashboard() {
 }
 setInterval(renderProgressDashboard, 2000);
 
-// Render the routine on page load
+let csvCourses = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('course-search-section').style.display = 'block';
+    loadProjectCSV();
+});
+
+function loadProjectCSV() {
+    fetch('./Offered Course Report.csv')
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            }
+            throw new Error('CSV file not found');
+        })
+        .then(csvText => {
+            parseCSV(csvText);
+        })
+        .catch(error => {
+            document.getElementById('course-search-section').style.display = 'block';
+        });
+}
+
+function parseCSV(csvText) {
+    const lines = csvText.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const rawCourses = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+            const values = parseCSVLine(lines[i]);
+            if (values.length >= headers.length) {
+                const course = {};
+                headers.forEach((header, index) => {
+                    course[header] = values[index] ? values[index].trim().replace(/"/g, '') : '';
+                });
+                rawCourses.push(course);
+            }
+        }
+    }
+    
+    csvCourses = groupCoursesBySection(rawCourses);
+    document.getElementById('course-search-section').style.display = 'block';
+}
+
+function groupCoursesBySection(rawCourses) {
+    const grouped = {};
+    
+    rawCourses.forEach(course => {
+        const key = `${course['Course Title']}_${course['Section']}`;
+        
+        if (!grouped[key]) {
+            grouped[key] = {
+                'Course Title': course['Course Title'],
+                'Course Code': course['Course Code'],
+                'Section': course['Section'],
+                'Type': course['Type'],
+                'Room': course['Room'],
+                'Faculty': course['Faculty'],
+                'Department': course['Department'],
+                'Class ID': course['Class ID'],
+                'schedules': []
+            };
+        }
+        
+        if (course['Day'] && course['Start Time'] && course['End Time']) {
+            grouped[key].schedules.push({
+                'Day': course['Day'],
+                'Start Time': course['Start Time'],
+                'End Time': course['End Time'],
+                'Type': course['Type'],
+                'Room': course['Room']
+            });
+        }
+    });
+    
+    return Object.values(grouped).map(course => {
+        const uniqueSchedules = [];
+        const seen = new Set();
+        
+        course.schedules.forEach(schedule => {
+            const key = `${schedule.Day}_${schedule['Start Time']}_${schedule['End Time']}`;
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueSchedules.push(schedule);
+            }
+        });
+        
+        course.schedules = uniqueSchedules;
+        return course;
+    });
+}
+
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current);
+    return result;
+}
+
+document.getElementById('course-search').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const resultsContainer = document.getElementById('course-results');
+    
+    if (searchTerm.length < 2) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+    
+    const filteredCourses = csvCourses.filter(course => {
+        return (course['Course Title'] && course['Course Title'].toLowerCase().includes(searchTerm)) ||
+               (course['Course Code'] && course['Course Code'].toLowerCase().includes(searchTerm)) ||
+               (course['Section'] && course['Section'].toLowerCase().includes(searchTerm));
+    });
+    
+    displaySearchResults(filteredCourses.slice(0, 20));
+});
+
+function displaySearchResults(courses) {
+    const resultsContainer = document.getElementById('course-results');
+    
+    if (courses.length === 0) {
+        resultsContainer.innerHTML = '<p style="padding: 10px; color: #ff6f61;">No courses found</p>';
+        resultsContainer.style.display = 'block';
+        return;
+    }
+    
+    resultsContainer.innerHTML = courses.map(course => {
+        const scheduleText = course.schedules.map(s => 
+            `${s.Day} ${s['Start Time']}-${s['End Time']} (${s.Type || 'Theory'}, Room: ${s.Room || 'TBA'})`
+        ).join(', ');
+        
+        return `
+            <div class="course-result-item" style="padding: 10px; border-bottom: 1px solid #00d4ff22; cursor: pointer; background: #23233a;" 
+                 onmouseover="this.style.background='#2a2a3b'" 
+                 onmouseout="this.style.background='#23233a'"
+                 onclick="selectCourse('${encodeURIComponent(JSON.stringify(course))}')">
+                <div style="font-weight: bold; color: #00d4ff;">${course['Course Title'] || 'N/A'}</div>
+                <div style="font-size: 0.9rem; color: #fff;">
+                    Code: ${course['Course Code'] || 'N/A'} | Section: ${course['Section'] || 'N/A'}
+                </div>
+                <div style="font-size: 0.85rem; color: #b3e5fc; margin-top: 4px;">
+                    Schedules: ${scheduleText || 'No schedule available'}
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    resultsContainer.style.display = 'block';
+}
+
+function selectCourse(encodedCourse) {
+    const course = JSON.parse(decodeURIComponent(encodedCourse));
+    
+    if (course.schedules.length === 0) {
+        alert('No schedule information available for this course.');
+        return;
+    }
+    
+    const courseTitle = course['Course Title'];
+    const originalLength = classes.length;
+    classes.splice(0, classes.length, ...classes.filter(cls => 
+        cls.course !== courseTitle
+    ));
+    const removedCount = originalLength - classes.length;
+    
+    course.schedules.forEach(schedule => {
+        const newClass = {
+            day: schedule['Day'],
+            startTime: convertTimeFormat(schedule['Start Time']),
+            endTime: convertTimeFormat(schedule['End Time']),
+            course: course['Course Title'],
+            type: schedule['Type'] || course['Type'] || 'Theory',
+            room: schedule['Room'] || course['Room'] || ''
+        };
+        classes.push(newClass);
+    });
+    
+    saveClassesToLocalStorage();
+    renderRoutine();
+    
+    document.getElementById('course-results').style.display = 'none';
+    document.getElementById('course-search').value = '';
+}
+
+function convertTimeFormat(timeStr) {
+    if (!timeStr) return '';
+    
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if (match) {
+        let hours = parseInt(match[1]);
+        const minutes = match[2];
+        const ampm = match[3].toUpperCase();
+        
+        if (ampm === 'PM' && hours !== 12) {
+            hours += 12;
+        } else if (ampm === 'AM' && hours === 12) {
+            hours = 0;
+        }
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    }
+    
+    return timeStr;
+}
+
 renderRoutine();
-setInterval(updateCountdown, 1000);
 setInterval(updateClassTimers, 1000);
 setInterval(highlightNextClass, 1000);
-
-// Render the exam list on page load
 renderExamList();
