@@ -2,6 +2,15 @@ const classes = JSON.parse(localStorage.getItem('classes')) || [];
 const exams = JSON.parse(localStorage.getItem('exams')) || [];
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+function convertTo12Hour(time24) {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    const hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+}
+
 function saveClassesToLocalStorage() {
     localStorage.setItem('classes', JSON.stringify(classes));
 }
@@ -31,7 +40,7 @@ function renderRoutine() {
                 classCard.className = 'class-card';
                 classCard.innerHTML = `
                     <h4>${cls.course}</h4>
-                    <p><b>Time:</b> ${cls.startTime} - ${cls.endTime}</p>
+                    <p><b>Time:</b> ${convertTo12Hour(cls.startTime)} - ${convertTo12Hour(cls.endTime)}</p>
                     <p><b>Room:</b> ${cls.room}</p>
                     <p><b>Type:</b> ${cls.type}</p>
                     <span class="class-timer" data-time="${cls.startTime}" data-day="${cls.day}" style="display:none"></span>
@@ -178,7 +187,7 @@ function renderExamList() {
         examItem.innerHTML = `
             <p><strong>Course:</strong> ${exam.course}</p>
             <p><strong>Date:</strong> ${exam.date}</p>
-            <p><strong>Time:</strong> ${exam.time}</p>
+            <p><strong>Time:</strong> ${convertTo12Hour(exam.time)}</p>
             ${exam.notes ? `<p><strong>Notes:</strong> ${exam.notes}</p>` : ''}
             <p class="exam-countdown">Loading countdown...</p>
             <button class='btn btn-danger btn-sm delete-exam-btn' style='padding:2px 8px;font-size:0.85rem;'>Delete</button>
@@ -310,7 +319,7 @@ setInterval(function() {
         classDate.setHours(h, m, 0, 0);
         const diff = classDate - now;
         if (diff > 0 && diff < reminderLeadTime*60*1000 && diff > (reminderLeadTime-1)*60*1000) {
-            sendReminder('Class Reminder', `Upcoming class: ${cls.course} at ${cls.startTime} (${cls.room})`);
+            sendReminder('Class Reminder', `Upcoming class: ${cls.course} at ${convertTo12Hour(cls.startTime)} (${cls.room})`);
         }
     });
     
@@ -318,7 +327,7 @@ setInterval(function() {
         const examDateTime = new Date(`${exam.date}T${exam.time}`);
         const diff = examDateTime - now;
         if (diff > 0 && diff < reminderLeadTime*60*1000 && diff > (reminderLeadTime-1)*60*1000) {
-            sendReminder('Exam Reminder', `Upcoming exam: ${exam.course} at ${exam.time} on ${exam.date}`);
+            sendReminder('Exam Reminder', `Upcoming exam: ${exam.course} at ${convertTo12Hour(exam.time)} on ${exam.date}`);
         }
     });
 }, 30000);
@@ -458,7 +467,7 @@ function updateCurrentEventTracker() {
         const total = Math.round((classEnd - classStart) / 60000);
         const elapsed = Math.round((now - classStart) / 60000);
         const percent = Math.min(100, Math.max(0, (elapsed / total) * 100));
-        msg += `<div class="current-class-info">Current Class: <span>${currentClass.course}</span> <span class='class-time'>(${currentClass.startTime} - ${currentClass.endTime})</span> <span class='class-room'>in Room ${currentClass.room}</span></div>`;
+        msg += `<div class="current-class-info">Current Class: <span>${currentClass.course}</span> <span class='class-time'>(${convertTo12Hour(currentClass.startTime)} - ${convertTo12Hour(currentClass.endTime)})</span> <span class='class-room'>in Room ${currentClass.room}</span></div>`;
         msg += `<div class='class-progress-row'>` +
                `<span id='class-progress-time'>${elapsed} / ${total} min</span>` +
                `<div class='progress stylish-progress'>` +
@@ -466,7 +475,7 @@ function updateCurrentEventTracker() {
     }
     
     if (currentExam) {
-        msg += `<div class="current-exam-info">Current Exam: <span>${currentExam.course}</span> <span class='exam-time'>(${currentExam.date} ${currentExam.time})</span></div>`;
+        msg += `<div class="current-exam-info">Current Exam: <span>${currentExam.course}</span> <span class='exam-time'>(${currentExam.date} ${convertTo12Hour(currentExam.time)})</span></div>`;
     }
     
     tracker.innerHTML = msg;
