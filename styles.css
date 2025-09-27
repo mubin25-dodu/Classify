@@ -172,6 +172,48 @@ body.light-theme .exam-item {
     font-size: 0.95rem;
 }
 
+/* Gap indicator styles */
+.gap-indicator {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px 0;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #00d4ff11, #00d4ff22);
+    border: 1px dashed #00d4ff55;
+    border-radius: 8px;
+    min-height: 30px;
+    position: relative;
+}
+
+.gap-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: #00d4ff;
+    font-weight: 500;
+    text-align: center;
+}
+
+.gap-icon {
+    font-size: 1.1rem;
+    opacity: 0.8;
+}
+
+.gap-text {
+    letter-spacing: 0.3px;
+}
+
+body.light-theme .gap-indicator {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    border-color: #2196f3;
+}
+
+body.light-theme .gap-content {
+    color: #1976d2;
+}
+
 body.light-theme .highlight {
     background-color: #b3e5fc !important;
     color: #222 !important;

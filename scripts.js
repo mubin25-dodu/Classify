@@ -11,6 +11,29 @@ function convertTo12Hour(time24) {
     return `${hour12}:${minutes} ${ampm}`;
 }
 
+function calculateGap(endTime1, startTime2) {
+    const [endHour, endMinute] = endTime1.split(':').map(Number);
+    const [startHour, startMinute] = startTime2.split(':').map(Number);
+    
+    const endTotalMinutes = endHour * 60 + endMinute;
+    const startTotalMinutes = startHour * 60 + startMinute;
+    
+    const gapMinutes = startTotalMinutes - endTotalMinutes;
+    
+    if (gapMinutes <= 0) return null; // No gap or overlapping classes
+    
+    const hours = Math.floor(gapMinutes / 60);
+    const minutes = gapMinutes % 60;
+    
+    if (hours === 0) {
+        return `${minutes} min gap`;
+    } else if (minutes === 0) {
+        return `${hours} hour${hours > 1 ? 's' : ''} gap`;
+    } else {
+        return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} min gap`;
+    }
+}
+
 function saveClassesToLocalStorage() {
     localStorage.setItem('classes', JSON.stringify(classes));
 }
@@ -36,6 +59,23 @@ function renderRoutine() {
             dayColumn.innerHTML = `<h3>${day}</h3>`;
 
             dayClasses.forEach((cls, idx) => {
+                // Add gap indicator if this is not the first class
+                if (idx > 0) {
+                    const previousClass = dayClasses[idx - 1];
+                    const gap = calculateGap(previousClass.endTime, cls.startTime);
+                    if (gap) {
+                        const gapElement = document.createElement('div');
+                        gapElement.className = 'gap-indicator';
+                        gapElement.innerHTML = `
+                            <div class="gap-content">
+                                <i class="gap-icon">⏳</i>
+                                <span class="gap-text">${gap}</span>
+                            </div>
+                        `;
+                        dayColumn.appendChild(gapElement);
+                    }
+                }
+
                 const classCard = document.createElement('div');
                 classCard.className = 'class-card';
                 classCard.innerHTML = `
