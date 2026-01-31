@@ -702,8 +702,11 @@ function loadProjectCSV() {
 }
 
 function parseCSV(csvText) {
-    const lines = csvText.split('\n');
+    // Handle all line ending types: \r\n (Windows), \n (Unix), \r (Mac)
+    const lines = csvText.split(/\r\n|\n|\r/);
+    console.log(`Parsed ${lines.length} lines from CSV`);
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    console.log('Headers:', headers);
     const rawCourses = [];
     
     for (let i = 1; i < lines.length; i++) {
@@ -795,17 +798,27 @@ document.getElementById('course-search').addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
     const resultsContainer = document.getElementById('course-results');
     
+    console.log(`Searching for: "${searchTerm}"`);
+    console.log(`Total courses in csvCourses: ${csvCourses.length}`);
+    
     if (searchTerm.length < 2) {
         resultsContainer.style.display = 'none';
         return;
     }
     
     const filteredCourses = csvCourses.filter(course => {
-        return (course['Course Title'] && course['Course Title'].toLowerCase().includes(searchTerm)) ||
-               (course['Course Code'] && course['Course Code'].toLowerCase().includes(searchTerm)) ||
-               (course['Section'] && course['Section'].toLowerCase().includes(searchTerm));
+        const titleMatch = course['Course Title'] && course['Course Title'].toLowerCase().includes(searchTerm);
+        const codeMatch = course['Course Code'] && course['Course Code'].toLowerCase().includes(searchTerm);
+        const sectionMatch = course['Section'] && course['Section'].toLowerCase().includes(searchTerm);
+        
+        if (titleMatch || codeMatch || sectionMatch) {
+            console.log(`Match found:`, course['Course Title'], course['Section']);
+        }
+        
+        return titleMatch || codeMatch || sectionMatch;
     });
     
+    console.log(`Found ${filteredCourses.length} matches`);
     displaySearchResults(filteredCourses.slice(0, 20));
 });
 
