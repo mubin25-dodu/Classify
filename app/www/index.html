@@ -420,6 +420,14 @@
           <label class="setting-label">Notifications</label>
           <button id="btn-enable-notif" class="btn-secondary">Enable Notifications</button>
         </div>
+        <div class="setting-group">
+          <label class="setting-label">Import Schedule</label>
+          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Merge data from another key into your current schedule.</p>
+          <div style="display: flex; gap: 8px;">
+            <input id="settings-import-key-input" type="text" class="key-input" style="flex: 1; padding: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text);" placeholder="Paste key here..." spellcheck="false" autocomplete="off" />
+            <button id="btn-settings-import-key" class="btn-secondary" style="padding: 8px 16px;">Import</button>
+          </div>
+        </div>
         <div class="danger-zone">
           <p class="danger-label">Danger Zone</p>
           <button id="btn-clear-all-classes" class="btn-danger">🗑 Clear All Classes</button>
