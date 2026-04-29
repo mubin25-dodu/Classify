@@ -208,6 +208,84 @@ function setupNavigation() {
         if ('Notification' in window) Notification.requestPermission().then(p => showToast('Notifications ' + p));
     });
 
+    document.getElementById('btn-settings-import-key').addEventListener('click', async () => {
+        const inputKey = document.getElementById('settings-import-key-input').value.trim();
+        if (!inputKey || inputKey.length < 10) {
+            showToast("Please enter a valid key to import");
+            return;
+        }
+
+        if (inputKey === userKey) {
+            showToast("You cannot import from your own key");
+            return;
+        }
+
+        if (!db) {
+            showToast("Database connection error");
+            return;
+        }
+
+        const btn = document.getElementById('btn-settings-import-key');
+        const oldText = btn.textContent;
+        btn.textContent = 'Importing...';
+        btn.disabled = true;
+        showLoader();
+
+        try {
+            const { data: oldClasses } = await db.from('classes').select('*').eq('user_id', inputKey);
+            const { data: oldExams } = await db.from('exams').select('*').eq('user_id', inputKey);
+            const { data: oldTasks } = await db.from('tasks').select('*').eq('user_id', inputKey);
+
+            let added = false;
+
+            if (oldClasses && oldClasses.length > 0) {
+                const newClasses = oldClasses.map(c => {
+                    const { id, created_at, ...rest } = c;
+                    return { ...rest, user_id: userKey };
+                });
+                await db.from('classes').insert(newClasses);
+                added = true;
+            }
+
+            if (oldExams && oldExams.length > 0) {
+                const newExams = oldExams.map(e => {
+                    const { id, created_at, ...rest } = e;
+                    return { ...rest, user_id: userKey };
+                });
+                await db.from('exams').insert(newExams);
+                added = true;
+            }
+
+            if (oldTasks && oldTasks.length > 0) {
+                const newTasks = oldTasks.map(t => {
+                    const { id, created_at, ...rest } = t;
+                    return { ...rest, user_id: userKey };
+                });
+                await db.from('tasks').insert(newTasks);
+                added = true;
+            }
+
+            if (added) {
+                document.getElementById('settings-import-key-input').value = '';
+                document.getElementById('modal-settings').classList.add('hidden');
+                showToast("Schedule imported successfully!");
+                await fetchClasses();
+                await fetchExams();
+                await fetchTasks();
+                updateAllViews();
+            } else {
+                showToast("No data found for that key");
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Failed to import schedule");
+        } finally {
+            btn.textContent = oldText;
+            btn.disabled = false;
+            hideLoader();
+        }
+    });
+
     document.getElementById('btn-clear-all-classes').addEventListener('click', async () => {
         if(confirm("Are you sure you want to delete ALL classes?")) {
             showLoader();
