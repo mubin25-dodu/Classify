@@ -33,9 +33,12 @@
       <button id="btn-create-key" class="btn-primary btn-full">✨ Create My Schedule</button>
     </div>
     <div id="panel-existing" class="key-panel">
-      <p class="key-info">Enter your existing key to restore your schedule on this device.</p>
-      <input id="existing-key-input" type="text" class="key-input" placeholder="Paste your key here…" autocomplete="off" spellcheck="false"/>
-      <button id="btn-use-key" class="btn-primary btn-full">🔑 Load My Schedule</button>
+      <p class="key-info">Enter a key to restore your schedule, or import someone else's as a new copy.</p>
+      <input id="existing-key-input" type="text" class="key-input" placeholder="Paste key here…" autocomplete="off" spellcheck="false"/>
+      <div style="display: flex; gap: 10px; margin-top: 16px;">
+        <button id="btn-use-key" class="btn-primary" style="flex: 1;">🔑 Sync</button>
+        <button id="btn-import-key" class="btn-secondary" style="flex: 1; border: 1px solid var(--border); background: var(--bg2); color: var(--text1);">📥 Import Copy</button>
+      </div>
     </div>
     <div id="panel-key-display" class="key-panel">
       <div class="key-display-box">

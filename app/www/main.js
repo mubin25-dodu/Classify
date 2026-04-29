@@ -72,6 +72,77 @@ function setupKeyOverlay() {
         initApp();
     });
 
+    const btnImport = document.getElementById('btn-import-key');
+    if (btnImport) {
+        btnImport.addEventListener('click', async () => {
+            const inputKey = document.getElementById('existing-key-input').value.trim();
+            if (!inputKey || inputKey.length < 10) {
+                document.getElementById('key-error').textContent = "Please enter a valid key";
+                document.getElementById('key-error').classList.remove('hidden');
+                return;
+            }
+
+            if (!db) {
+                document.getElementById('key-error').textContent = "Database connection error.";
+                document.getElementById('key-error').classList.remove('hidden');
+                return;
+            }
+
+            const oldText = btnImport.textContent;
+            btnImport.textContent = 'Importing...';
+            btnImport.disabled = true;
+            document.getElementById('key-error').classList.add('hidden');
+
+            try {
+                let newUserKey;
+                try { newUserKey = crypto.randomUUID(); } catch(e) { newUserKey = 'usr_' + Math.random().toString(36).substr(2) + Date.now(); }
+
+                const { data: oldClasses } = await db.from('classes').select('*').eq('user_id', inputKey);
+                const { data: oldExams } = await db.from('exams').select('*').eq('user_id', inputKey);
+                const { data: oldTasks } = await db.from('tasks').select('*').eq('user_id', inputKey);
+
+                if (oldClasses && oldClasses.length > 0) {
+                    const newClasses = oldClasses.map(c => {
+                        const { id, created_at, ...rest } = c;
+                        return { ...rest, user_id: newUserKey };
+                    });
+                    await db.from('classes').insert(newClasses);
+                }
+
+                if (oldExams && oldExams.length > 0) {
+                    const newExams = oldExams.map(e => {
+                        const { id, created_at, ...rest } = e;
+                        return { ...rest, user_id: newUserKey };
+                    });
+                    await db.from('exams').insert(newExams);
+                }
+
+                if (oldTasks && oldTasks.length > 0) {
+                    const newTasks = oldTasks.map(t => {
+                        const { id, created_at, ...rest } = t;
+                        return { ...rest, user_id: newUserKey };
+                    });
+                    await db.from('tasks').insert(newTasks);
+                }
+
+                userKey = newUserKey;
+                try { localStorage.setItem('classify_user_key', userKey); } catch(e) {}
+                
+                alert("Schedule imported successfully!\n\nYour NEW generated key is:\n" + userKey + "\n\nPlease save this key (you can also find it in Settings later).");
+                
+                document.getElementById('key-overlay').classList.add('hidden');
+                initApp();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('key-error').textContent = "Failed to import schedule. Please try again.";
+                document.getElementById('key-error').classList.remove('hidden');
+            } finally {
+                btnImport.textContent = oldText;
+                btnImport.disabled = false;
+            }
+        });
+    }
+
     document.getElementById('btn-copy-key').addEventListener('click', (e) => {
         navigator.clipboard.writeText(userKey);
         e.target.textContent = '✅ Copied!';
@@ -231,7 +302,18 @@ function setupNavigation() {
     document.getElementById('btn-change-key').addEventListener('click', () => {
         if(confirm("This will log you out. Make sure you've saved your key!")) {
             try { localStorage.removeItem('classify_user_key'); } catch(e){}
-            location.reload();
+            userKey = null;
+            classes = [];
+            exams = [];
+            tasks = [];
+            document.getElementById('modal-settings').classList.add('hidden');
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('key-overlay').classList.remove('hidden');
+            
+            // clear inputs
+            document.getElementById('existing-key-input').value = '';
+            document.getElementById('generated-key-text').textContent = '';
+            document.getElementById('settings-key-display').textContent = '';
         }
     });
 }function setupForms() {
