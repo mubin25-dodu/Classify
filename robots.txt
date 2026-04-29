@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://classify.app/sitemap.xml
