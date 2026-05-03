@@ -41,7 +41,7 @@ jobs:
       - name: Capacitor Sync
         run: |
           cd app
-          npx @capacitor/cli sync android
+          node node_modules/@capacitor/cli/bin/capacitor sync android
 
       - name: Build with Gradle
         run: |
