@@ -48,8 +48,8 @@
 </head>
 <body>
 
-<!-- KEY OVERLAY -->
-<div id="key-overlay" class="key-overlay">
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay" class="key-overlay">
   <div class="key-bg-mesh"></div>
   <div class="key-card">
     <div class="key-logo">
@@ -60,28 +60,36 @@
       <p class="key-subtitle">Smart Class &amp; Exam Scheduler</p>
     </div>
     <div class="key-tabs" role="tablist">
-      <button class="key-tab active" id="tab-new" role="tab" aria-selected="true" data-tab="new">New Schedule</button>
-      <button class="key-tab" id="tab-existing" role="tab" aria-selected="false" data-tab="existing">Use Existing Key</button>
+      <button class="key-tab active" id="tab-login" role="tab" aria-selected="true" data-tab="login">Login</button>
+      <button class="key-tab" id="tab-register" role="tab" aria-selected="false" data-tab="register">Register</button>
     </div>
-    <div id="panel-new" class="key-panel active">
-      <p class="key-info">Create a new personal schedule. You'll receive a unique key — <strong>save it</strong> to sync across devices.</p>
-      <button id="btn-create-key" class="btn-primary btn-full">✨ Create My Schedule</button>
+    <div id="panel-login" class="key-panel active">
+      <form id="login-form" novalidate>
+        <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Email</label>
+          <input type="email" id="login-email" class="key-input" placeholder="Enter your email" required/>
+        </div>
+        <div class="form-group" style="text-align: left; margin-bottom: 16px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Password</label>
+          <input type="password" id="login-password" class="key-input" placeholder="Enter your password" required/>
+        </div>
+        <button type="submit" id="btn-login" class="btn-primary btn-full">🔑 Login</button>
+      </form>
     </div>
-    <div id="panel-existing" class="key-panel">
-      <p class="key-info">Enter your existing key to restore your schedule on this device.</p>
-      <input id="existing-key-input" type="text" class="key-input" placeholder="Paste your key here…" autocomplete="off" spellcheck="false"/>
-      <button id="btn-use-key" class="btn-primary btn-full">🔑 Load My Schedule</button>
+    <div id="panel-register" class="key-panel">
+      <form id="register-form" novalidate>
+        <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Email</label>
+          <input type="email" id="register-email" class="key-input" placeholder="Enter your email" required/>
+        </div>
+        <div class="form-group" style="text-align: left; margin-bottom: 16px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Password</label>
+          <input type="password" id="register-password" class="key-input" placeholder="Create a password" required/>
+        </div>
+        <button type="submit" id="btn-register" class="btn-primary btn-full">✨ Create Account</button>
+      </form>
     </div>
-    <div id="panel-key-display" class="key-panel">
-      <div class="key-display-box">
-        <p class="key-display-label">Your Unique Key</p>
-        <code id="generated-key-text" class="key-display-value"></code>
-        <button id="btn-copy-key" class="btn-copy">📋 Copy Key</button>
-      </div>
-      <div class="key-warning">⚠️ Save this key somewhere safe. You'll need it to access your schedule from other devices. It cannot be recovered if lost.</div>
-      <button id="btn-start-app" class="btn-primary btn-full">🚀 Start Classify</button>
-    </div>
-    <p id="key-error" class="key-error hidden"></p>
+    <p id="auth-error" class="key-error hidden"></p>
   </div>
 </div>
 
@@ -119,7 +127,7 @@
           Help
         </button>
         <button class="sidebar-footer-btn" id="sb-settings">
-          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           Settings
         </button>
       </div>
@@ -150,7 +158,7 @@
         <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 14v-1M10 6a2 2 0 0 1 0 4c-.8.3-1 1-1 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
       <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">
-        <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="18" height="18"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
       </button>
     </div>
   </header>
@@ -442,10 +450,11 @@
           </div>
         </div>
         <div class="setting-group">
-          <label class="setting-label">Your Schedule Key</label>
+          <label class="setting-label">Share Your Schedule</label>
+          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Share this ID with friends so they can import your schedule.</p>
           <div class="key-row">
-            <code id="settings-key-display" class="mini-key"></code>
-            <button id="btn-copy-settings-key" class="btn-mini">Copy</button>
+            <code id="settings-share-id-display" class="mini-key"></code>
+            <button id="btn-copy-share-id" class="btn-mini">Copy</button>
           </div>
         </div>
         <div class="setting-group">
@@ -454,9 +463,9 @@
         </div>
         <div class="setting-group">
           <label class="setting-label">Import Schedule</label>
-          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Merge data from another key into your current schedule.</p>
+          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Merge data using a friend's Share ID.</p>
           <div style="display: flex; gap: 8px;">
-            <input id="settings-import-key-input" type="text" class="key-input" style="flex: 1; padding: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text);" placeholder="Paste key here..." spellcheck="false" autocomplete="off" />
+            <input id="settings-import-key-input" type="text" class="key-input" style="flex: 1; padding: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text);" placeholder="Paste Share ID here..." spellcheck="false" autocomplete="off" />
             <button id="btn-settings-import-key" class="btn-secondary" style="padding: 8px 16px;">Import</button>
           </div>
         </div>
@@ -464,7 +473,7 @@
           <p class="danger-label">Danger Zone</p>
           <button id="btn-clear-all-classes" class="btn-danger">🗑 Clear All Classes</button>
           <button id="btn-clear-all-exams" class="btn-danger">🗑 Clear All Exams</button>
-          <button id="btn-change-key" class="btn-danger">🔑 Change Key / Logout</button>
+          <button id="btn-logout" class="btn-danger" style="margin-top: 12px;">🚪 Logout</button>
         </div>
       </div>
     </div>

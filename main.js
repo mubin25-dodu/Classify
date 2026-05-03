@@ -21,15 +21,13 @@ function showToast(msg) {
 function showLoader() { document.getElementById('global-loader').classList.remove('hidden'); }
 function hideLoader() { document.getElementById('global-loader').classList.add('hidden'); }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     try {
-        userKey = localStorage.getItem('classify_user_key');
         const storedTime = localStorage.getItem('reminderLeadTime');
         if (storedTime) reminderLeadTime = parseInt(storedTime);
     } catch (e) { console.warn('localStorage not available', e); }
 
     setupTheme();
-    setupKeyOverlay();
     setupNavigation();
     setupModals();
     setupForms();
@@ -37,50 +35,91 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (window.supabase) {
         db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        setupAuthOverlay();
+
+        // Check active session
+        const { data: { session }, error } = await db.auth.getSession();
+        if (session) {
+            handleLoginSuccess(session.user);
+        }
+
+        // Listen for auth changes
+        db.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                handleLoginSuccess(session.user);
+            } else if (event === 'SIGNED_OUT') {
+                userKey = null;
+                document.getElementById('auth-overlay').classList.remove('hidden');
+                document.getElementById('app').classList.add('hidden');
+            }
+        });
     } else {
         showToast("Error: Supabase client not loaded");
     }
-
-    if (userKey) {
-        document.getElementById('key-overlay').classList.add('hidden');
-        initApp();
-    }
 });
 
-function setupKeyOverlay() {
-    document.getElementById('tab-new').addEventListener('click', () => switchKeyTab('new'));
-    document.getElementById('tab-existing').addEventListener('click', () => switchKeyTab('existing'));
+function handleLoginSuccess(user) {
+    userKey = user.id;
+    document.getElementById('auth-overlay').classList.add('hidden');
+    initApp();
+}
+
+function setupAuthOverlay() {
+    document.getElementById('tab-login').addEventListener('click', () => switchKeyTab('login'));
+    document.getElementById('tab-register').addEventListener('click', () => switchKeyTab('register'));
     
-    document.getElementById('btn-create-key').addEventListener('click', () => {
-        try { userKey = crypto.randomUUID(); } catch(e) { userKey = 'usr_' + Math.random().toString(36).substr(2) + Date.now(); }
-        try { localStorage.setItem('classify_user_key', userKey); } catch(e) {}
-        switchKeyTab('key-display');
-        document.getElementById('generated-key-text').textContent = userKey;
-        document.getElementById('settings-key-display').textContent = userKey;
-    });
-
-    document.getElementById('btn-use-key').addEventListener('click', () => {
-        const inputKey = document.getElementById('existing-key-input').value.trim();
-        if (!inputKey || inputKey.length < 10) {
-            document.getElementById('key-error').textContent = "Please enter a valid key";
-            document.getElementById('key-error').classList.remove('hidden');
-            return;
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const errEl = document.getElementById('auth-error');
+        const btn = document.getElementById('btn-login');
+        
+        btn.textContent = 'Logging in...';
+        btn.disabled = true;
+        
+        const { data, error } = await db.auth.signInWithPassword({ email, password });
+        
+        btn.textContent = '🔑 Login';
+        btn.disabled = false;
+        
+        if (error) {
+            errEl.textContent = error.message;
+            errEl.classList.remove('hidden');
+        } else {
+            errEl.classList.add('hidden');
+            document.getElementById('login-form').reset();
         }
-        userKey = inputKey;
-        try { localStorage.setItem('classify_user_key', userKey); } catch(e) {}
-        document.getElementById('key-overlay').classList.add('hidden');
-        initApp();
     });
 
-    document.getElementById('btn-copy-key').addEventListener('click', (e) => {
-        navigator.clipboard.writeText(userKey);
-        e.target.textContent = '✅ Copied!';
-        setTimeout(() => e.target.textContent = '📋 Copy Key', 2000);
-    });
-
-    document.getElementById('btn-start-app').addEventListener('click', () => {
-        document.getElementById('key-overlay').classList.add('hidden');
-        initApp();
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const errEl = document.getElementById('auth-error');
+        const btn = document.getElementById('btn-register');
+        
+        btn.textContent = 'Creating account...';
+        btn.disabled = true;
+        
+        const { data, error } = await db.auth.signUp({ email, password });
+        
+        btn.textContent = '✨ Create Account';
+        btn.disabled = false;
+        
+        if (error) {
+            errEl.textContent = error.message;
+            errEl.classList.remove('hidden');
+        } else {
+            errEl.classList.add('hidden');
+            if (data.user && data.session) {
+                // Auto logged in
+                document.getElementById('register-form').reset();
+            } else {
+                errEl.textContent = "Please check your email to verify your account.";
+                errEl.classList.remove('hidden');
+            }
+        }
     });
 }
 
@@ -90,9 +129,11 @@ function switchKeyTab(tabName) {
     const t = document.getElementById('tab-' + tabName);
     if(t) t.classList.add('active');
     document.getElementById('panel-' + tabName).classList.add('active');
-}async function initApp() {
+}
+
+async function initApp() {
     document.getElementById('app').classList.remove('hidden');
-    document.getElementById('settings-key-display').textContent = userKey;
+    document.getElementById('settings-share-id-display').textContent = userKey;
     showLoader();
     await fetchClasses();
     await fetchExams();
@@ -198,7 +239,7 @@ function setupNavigation() {
         try { localStorage.setItem('reminderLeadTime', reminderLeadTime); } catch(err) {}
     });
 
-    document.getElementById('btn-copy-settings-key').addEventListener('click', (e) => {
+    document.getElementById('btn-copy-share-id').addEventListener('click', (e) => {
         navigator.clipboard.writeText(userKey);
         e.target.textContent = 'Copied!';
         setTimeout(() => e.target.textContent = 'Copy', 2000);
@@ -306,9 +347,17 @@ function setupNavigation() {
         }
     });
 
-    document.getElementById('btn-change-key').addEventListener('click', () => {
-        if(confirm("This will log you out. Make sure you've saved your key!")) {
-            try { localStorage.removeItem('classify_user_key'); } catch(e){}
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+        if(confirm("Are you sure you want to log out?")) {
+            showLoader();
+            try {
+                const { error } = await db.auth.signOut();
+                if (error) throw error;
+            } catch (err) {
+                console.error("Logout error:", err);
+                showToast("Error logging out. Please try again.");
+            }
+            hideLoader();
             location.reload();
         }
     });
