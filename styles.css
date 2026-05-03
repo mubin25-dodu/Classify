@@ -701,6 +701,56 @@ input,select,textarea{font-family:inherit}
 .danger-zone{margin-top:24px;padding-top:22px;border-top:1px dashed var(--border)}
 .danger-label{font-size:.75rem;color:var(--pink);font-weight:800;text-transform:uppercase;margin-bottom:12px;letter-spacing:1px}
 
+/* Toggle Switch */
+.setting-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--surface3);
+  transition: .4s;
+  border-radius: 24px;
+  border: 1px solid var(--border);
+}
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text2);
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .toggle-slider {
+  background-color: var(--primary-dim);
+  border-color: var(--primary-l);
+}
+input:checked + .toggle-slider:before {
+  transform: translateX(22px);
+  background-color: var(--primary-l);
+}
+
 /* Help */
 .help-item{display:flex;gap:14px;margin-bottom:18px;align-items:flex-start}
 .help-icon{font-size:1.35rem;flex-shrink:0;line-height:1.4}

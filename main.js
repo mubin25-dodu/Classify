@@ -204,24 +204,53 @@ function switchKeyTab(tabName) {
 async function initApp() {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('settings-share-id-display').textContent = userKey;
+    
+    // Load from cache immediately
+    try {
+        const cachedClasses = localStorage.getItem(`classes_${userKey}`);
+        const cachedExams = localStorage.getItem(`exams_${userKey}`);
+        const cachedTasks = localStorage.getItem(`tasks_${userKey}`);
+        
+        if (cachedClasses) classes = JSON.parse(cachedClasses);
+        if (cachedExams) exams = JSON.parse(cachedExams);
+        if (cachedTasks) tasks = JSON.parse(cachedTasks);
+        
+        updateAllViews();
+    } catch (e) { console.error('Error loading cache', e); }
+
     showLoader();
-    await fetchClasses();
-    await fetchExams();
-    await fetchTasks();
-    await fetchPlannerSchedule();
-    await fetchGlobalPlannerCourses();
+    // Fetch from Supabase in background
+    await Promise.all([
+        fetchClasses(),
+        fetchExams(),
+        fetchTasks(),
+        fetchPlannerSchedule(),
+        fetchGlobalPlannerCourses()
+    ]);
     hideLoader();
+    
     updateAllViews();
+    syncNativeNotifications();
     setInterval(updateTimers, 1000);
     setInterval(checkReminders, 30000);
-    if ('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
+    setInterval(syncNativeNotifications, 10 * 60 * 1000); // Sync every 10 mins
+
+    // Initial permission check
+    if (localStorage.getItem('notifEnabled') === 'true') {
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+    }
 }
 
 async function fetchClasses() {
     if (!db) return;
     try {
         const { data, error } = await db.from('classes').select('*').eq('user_id', userKey);
-        if (!error) classes = data || [];
+        if (!error) {
+            classes = data || [];
+            localStorage.setItem(`classes_${userKey}`, JSON.stringify(classes));
+        }
     } catch(e) { console.error(e); }
 }
 
@@ -229,7 +258,10 @@ async function fetchExams() {
     if (!db) return;
     try {
         const { data, error } = await db.from('exams').select('*').eq('user_id', userKey);
-        if (!error) exams = data || [];
+        if (!error) {
+            exams = data || [];
+            localStorage.setItem(`exams_${userKey}`, JSON.stringify(exams));
+        }
     } catch(e) { console.error(e); }
 }
 
@@ -237,7 +269,10 @@ async function fetchTasks() {
     if (!db) return;
     try {
         const { data, error } = await db.from('tasks').select('*').eq('user_id', userKey);
-        if (!error) tasks = data || [];
+        if (!error) {
+            tasks = data || [];
+            localStorage.setItem(`tasks_${userKey}`, JSON.stringify(tasks));
+        }
     } catch(e) { console.error(e); }
 }
 
@@ -410,9 +445,30 @@ function setupNavigation() {
         setTimeout(() => e.target.textContent = 'Copy', 2000);
     });
 
-    document.getElementById('btn-enable-notif').addEventListener('click', () => {
-        if ('Notification' in window) Notification.requestPermission().then(p => showToast('Notifications ' + p));
-    });
+    const toggleNotif = document.getElementById('toggle-notifications');
+    if (toggleNotif) {
+        toggleNotif.checked = localStorage.getItem('notifEnabled') === 'true';
+        toggleNotif.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('notifEnabled', enabled);
+            
+            if (enabled) {
+                if ('Notification' in window) {
+                    const permission = await Notification.requestPermission();
+                    showToast('Notifications ' + permission);
+                }
+                
+                // Capacitor Local Notifications permission
+                if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+                    const { LocalNotifications } = window.Capacitor.Plugins;
+                    const status = await LocalNotifications.requestPermissions();
+                    showToast('Native Notif: ' + status.display);
+                }
+            } else {
+                showToast('Notifications disabled');
+            }
+        });
+    }
 
     document.getElementById('btn-settings-import-key').addEventListener('click', async () => {
         const inputKey = document.getElementById('settings-import-key-input').value.trim();
@@ -478,7 +534,14 @@ function setupNavigation() {
                 await fetchClasses();
                 await fetchExams();
                 await fetchTasks();
+                
+                // Cache immediately after import
+                localStorage.setItem(`classes_${userKey}`, JSON.stringify(classes));
+                localStorage.setItem(`exams_${userKey}`, JSON.stringify(exams));
+                localStorage.setItem(`tasks_${userKey}`, JSON.stringify(tasks));
+                
                 updateAllViews();
+                syncNativeNotifications();
             } else {
                 showToast("No data found for that key");
             }
@@ -575,18 +638,40 @@ function setupNavigation() {
         const activeDays = Array.from(document.querySelectorAll('.day-pill.active')).map(p => p.dataset.day);
         
         if (activeDays.length === 0) { showToast('Please select at least one day.'); return; }
-        showLoader();
+        
+        // Optimistic UI
+        const tempId = 'temp_' + Date.now();
+        const newClasses = activeDays.map(day => ({ 
+            id: tempId + Math.random(), 
+            user_id: userKey, 
+            course, start_time, end_time, day, type, room,
+            isTemp: true 
+        }));
+        
+        classes.push(...newClasses);
+        updateAllViews();
+        localStorage.setItem(`classes_${userKey}`, JSON.stringify(classes.filter(c => !c.isTemp))); // Cache non-temp only for safety
+        
+        document.getElementById('manual-class-form').reset();
+        document.querySelectorAll('.day-pill').forEach(p => p.classList.remove('active'));
+        document.getElementById('nav-schedule').click();
+        showToast('Class added!');
+
+        // Background Sync
         const inserts = activeDays.map(day => ({ user_id: userKey, course, start_time, end_time, day, type, room }));
         const { data, error } = await db.from('classes').insert(inserts).select();
         
         if (!error) {
-            classes.push(...data); updateAllViews();
-            document.getElementById('manual-class-form').reset();
-            document.querySelectorAll('.day-pill').forEach(p => p.classList.remove('active'));
-            document.getElementById('nav-schedule').click();
-            showToast('Class added!');
-        } else { showToast("Error adding class"); }
-        hideLoader();
+            // Replace temp classes with real ones
+            classes = classes.filter(c => !newClasses.find(nc => nc.id === c.id));
+            classes.push(...data);
+            localStorage.setItem(`classes_${userKey}`, JSON.stringify(classes));
+            updateAllViews();
+            syncNativeNotifications();
+        } else { 
+            console.error(error);
+            showToast("Sync error, but class saved locally."); 
+        }
     });
 
     document.getElementById('manual-exam-form').addEventListener('submit', async (e) => {
@@ -596,15 +681,25 @@ function setupNavigation() {
         const time = document.getElementById('e-time').value;
         const notes = document.getElementById('e-notes').value;
         
-        showLoader();
+        // Optimistic
+        const tempExam = { id: 'temp_' + Date.now(), user_id: userKey, course, date, time, notes, isTemp: true };
+        exams.push(tempExam);
+        updateAllViews();
+        localStorage.setItem(`exams_${userKey}`, JSON.stringify(exams.filter(ex => !ex.isTemp)));
+
+        document.getElementById('manual-exam-form').reset();
+        document.getElementById('nav-exams').click();
+        showToast('Exam added!');
+
+        // Sync
         const { data, error } = await db.from('exams').insert([{ user_id: userKey, course, date, time, notes }]).select();
         if (!error) {
-            exams.push(data[0]); updateAllViews();
-            document.getElementById('manual-exam-form').reset();
-            document.getElementById('nav-exams').click();
-            showToast('Exam added!');
-        } else { showToast("Error adding exam"); }
-        hideLoader();
+            exams = exams.filter(ex => ex.id !== tempExam.id);
+            exams.push(data[0]);
+            localStorage.setItem(`exams_${userKey}`, JSON.stringify(exams));
+            updateAllViews();
+            syncNativeNotifications();
+        } else { showToast("Sync error, saved locally"); }
     });
 
     document.getElementById('manual-task-form').addEventListener('submit', async (e) => {
@@ -613,15 +708,24 @@ function setupNavigation() {
         const date = document.getElementById('t-date').value;
         const time = document.getElementById('t-time').value;
         
-        showLoader();
+        // Optimistic
+        const tempTask = { id: 'temp_' + Date.now(), user_id: userKey, title, date, time, isTemp: true };
+        tasks.push(tempTask);
+        updateAllViews();
+        localStorage.setItem(`tasks_${userKey}`, JSON.stringify(tasks.filter(t => !t.isTemp)));
+
+        document.getElementById('manual-task-form').reset();
+        document.getElementById('nav-exams').click();
+        showToast('Task added!');
+
+        // Sync
         const { data, error } = await db.from('tasks').insert([{ user_id: userKey, title, date, time }]).select();
         if (!error) {
-            tasks.push(data[0]); updateAllViews();
-            document.getElementById('manual-task-form').reset();
-            document.getElementById('nav-exams').click();
-            showToast('Task added!');
-        } else { showToast("Error adding task"); }
-        hideLoader();
+            tasks = tasks.filter(t => t.id !== tempTask.id);
+            tasks.push(data[0]);
+            localStorage.setItem(`tasks_${userKey}`, JSON.stringify(tasks));
+            updateAllViews();
+        } else { showToast("Sync error, saved locally"); }
     });
 
     document.getElementById('edit-class-form').addEventListener('submit', async (e) => {
@@ -1271,21 +1375,88 @@ window.addCourseFromSearch = async function(idx) {
     hideLoader();
 };
 
+async function syncNativeNotifications() {
+    if (!(window.Capacitor && window.Capacitor.Plugins.LocalNotifications)) return;
+    if (localStorage.getItem('notifEnabled') !== 'true') return;
+
+    const { LocalNotifications } = window.Capacitor.Plugins;
+    
+    // Clear existing notifications
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications.length > 0) {
+        await LocalNotifications.cancel(pending);
+    }
+
+    const now = new Date();
+    const notifications = [];
+    let id = 1;
+
+    // Schedule Classes for the next 7 days
+    classes.forEach(cls => {
+        for (let i = 0; id < 50 && i < 7; i++) {
+            const date = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+            const dayName = DAYS_OF_WEEK[date.getDay()];
+            if (cls.day === dayName) {
+                const [h, m] = cls.start_time.split(':').map(Number);
+                const scheduledTime = new Date(date);
+                scheduledTime.setHours(h, m, 0, 0);
+                const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
+                
+                if (triggerTime > now) {
+                    notifications.push({
+                        title: 'Class Reminder',
+                        body: `Upcoming: ${cls.course} at ${convertTo12Hour(cls.start_time)}`,
+                        id: id++,
+                        schedule: { at: triggerTime }
+                    });
+                }
+            }
+        }
+    });
+
+    // Schedule Exams
+    exams.forEach(ex => {
+        const scheduledTime = new Date(ex.date + 'T' + ex.time);
+        const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
+        if (triggerTime > now && id < 60) {
+            notifications.push({
+                title: 'Exam Reminder',
+                body: `Upcoming Exam: ${ex.course} at ${convertTo12Hour(ex.time)}`,
+                id: id++,
+                schedule: { at: triggerTime }
+            });
+        }
+    });
+
+    if (notifications.length > 0) {
+        await LocalNotifications.schedule({ notifications });
+    }
+}
+
 function checkReminders() {
+    if (localStorage.getItem('notifEnabled') !== 'true') return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    
     const now = new Date();
     const leadMs = reminderLeadTime * 60 * 1000;
+    
     classes.forEach(cls => {
         const diff = getNextOccurrenceOfClass(cls, now) - now;
-        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) new Notification('Class Reminder', { body: 'Upcoming class: ' + cls.course + ' at ' + convertTo12Hour(cls.start_time) + ' (Room ' + cls.room + ')' });
+        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) {
+            new Notification('Class Reminder', { body: 'Upcoming class: ' + cls.course + ' at ' + convertTo12Hour(cls.start_time) + ' (Room ' + cls.room + ')' });
+        }
     });
     exams.forEach(ex => {
         const diff = new Date(ex.date + 'T' + ex.time) - now;
-        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) new Notification('Exam Reminder', { body: 'Upcoming exam: ' + ex.course + ' at ' + convertTo12Hour(ex.time) });
+        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) {
+            new Notification('Exam Reminder', { body: 'Upcoming exam: ' + ex.course + ' at ' + convertTo12Hour(ex.time) });
+        }
     });
     tasks.forEach(t => {
         const diff = new Date(t.date + 'T' + t.time) - now;
-        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) new Notification('Task Reminder', { body: 'Upcoming task: ' + t.title + ' at ' + convertTo12Hour(t.time) });
+        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) {
+            new Notification('Task Reminder', { body: 'Upcoming task: ' + t.title + ' at ' + convertTo12Hour(t.time) });
+        }
     });
 }
 
@@ -1848,7 +2019,7 @@ async function checkGlobalExams() {
         const { data: existingExams } = await db.from('exams').select('course').eq('user_id', userKey);
         const existingTitles = new Set((existingExams || []).map(e => e.course));
 
-        console.log(`Checking sync: ${myClasses.length} local classes, ${globalExams.length} global exams.`);
+        // console.log(`Checking sync: ${myClasses.length} local classes, ${globalExams.length} global exams.`);
 
         const cleanStr = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
