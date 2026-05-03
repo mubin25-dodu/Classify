@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   
   <!-- Primary Meta Tags -->
-  <title>Classify — Best Class & Exam Routine Scheduler for AIUB, UIU, NSU</title>
+  <title>Classify</title>
   <meta name="title" content="Classify — Best Class & Exam Routine Scheduler for AIUB, UIU, NSU">
   <meta name="description" content="Classify is the ultimate smart class scheduler, exam tracker, and routine manager for university students. Perfect for AIUB, UIU, NSU, BRACU, EWU, and IUB students. Sync across devices easily."/>
   <meta name="keywords" content="class scheduler, exam tracker, routine manager, AIUB class schedule, AIUB routine, UIU routine, NSU timetable, BRACU class tracker, university class manager, student planner app, Bangladesh university routine, class reminder, student timetable"/>
@@ -13,7 +13,7 @@
   <meta name="robots" content="index, follow">
   <meta name="language" content="English">
   <meta name="theme-color" content="#070b14"/>
-
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://classify.app/">
@@ -255,6 +255,24 @@
       </div>
     </section>
 
+    <!-- PLANNER TAB -->
+    <section id="tab-planner" class="tab-section" role="tabpanel">
+      <div class="section-header">
+        <h2 class="section-title">Next Semester Planner</h2>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 20 20" fill="none" width="16" height="16" class="search-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input id="planner-search-input" type="text" placeholder="Search next semester courses..." autocomplete="off"/>
+        <button id="btn-clear-planner-search" class="search-clear hidden" aria-label="Clear">✕</button>
+      </div>
+      <div id="planner-search-results" class="search-results"></div>
+
+      <h3 style="font-size: 0.9rem; margin-top: 16px; margin-bottom: 8px; color: var(--text2);">My Planned Schedule</h3>
+      <div id="planner-container" class="routine-grid">
+        <p class="empty-state full-empty">No planned courses yet.<br/>Search above to add to your plan.</p>
+      </div>
+    </section>
+
     <!-- SEARCH TAB -->
     <section id="tab-search" class="tab-section" role="tabpanel">
       <div class="section-header">
@@ -378,30 +396,13 @@
       </div>
     </section>
 
-    <!-- PLANNER TAB -->
-    <section id="tab-planner" class="tab-section" role="tabpanel">
-      <div class="section-header">
-        <h2 class="section-title">Routine Planner (Next Semester)</h2>
-      </div>
-      
-      <!-- Planner Search -->
-      <div class="search-box">
-        <svg viewBox="0 0 20 20" fill="none" width="16" height="16" class="search-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <input type="text" id="planner-search-input" class="search-input" placeholder="Search next semester courses..." autocomplete="off"/>
-        <button id="btn-clear-planner-search" class="icon-btn hidden" aria-label="Clear search">
-          <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-      <div id="planner-search-results" class="search-results-container"></div>
-      
-      <!-- Planner Grid -->
-      <h3 style="font-size: 0.9rem; margin: 20px 0 8px 0; color: var(--text2);">Your Planned Schedule</h3>
-      <div id="planner-container" class="routine-grid">
-        <p class="empty-state full-empty">No planned courses yet.<br/>Search above to add to your plan.</p>
-      </div>
-    </section>
 
   </main>
+
+  <!-- FLOATING ACTION BUTTON -->
+  <button class="nav-fab" id="nav-add" aria-label="Add">
+    <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+  </button>
 
   <!-- BOTTOM NAV -->
   <nav class="bottom-nav" role="navigation" aria-label="Main navigation">
@@ -413,9 +414,7 @@
       <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v4M14 2v4M2 9h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span class="nav-label">Schedule</span>
     </button>
-    <button class="nav-item nav-fab" id="nav-add" aria-label="Add">
-      <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
-    </button>
+
     <button class="nav-item" id="nav-exams" data-tab="exams" aria-label="Tasks & Exams">
       <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5" rx="2"/><path d="M7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Tasks/Exams</span>
@@ -471,6 +470,16 @@
         <div class="sheet-opt-sub">Find from the AIU course database</div>
       </div>
     </button>
+    <button id="fab-upload-personal" class="sheet-option">
+      <span class="sheet-opt-icon">
+        <svg viewBox="0 0 20 20" fill="none" width="22" height="22"><path d="M4 16v1a3 3 0 003 3h6a3 3 0 003-3v-1m-4-4l-3-3m0 0l-3 3m3-3v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <div>
+        <div class="sheet-opt-title">Upload Excel Routine</div>
+        <div class="sheet-opt-sub">Import from your registration slip</div>
+      </div>
+    </button>
+    <input type="file" id="user-routine-upload" accept=".xlsx, .xls, .csv" style="display: none;">
   </div>
 
   <!-- SETTINGS MODAL -->
@@ -522,10 +531,11 @@
           </div>
         </div>
         <div class="danger-zone">
-          <p class="danger-label">Danger Zone</p>
-          <button id="btn-clear-all-classes" class="btn-danger">🗑 Clear All Classes</button>
-          <button id="btn-clear-all-exams" class="btn-danger">🗑 Clear All Exams</button>
-          <button id="btn-logout" class="btn-danger" style="margin-top: 12px;">🚪 Logout</button>
+          <div class="divider"></div>
+          <button id="btn-clear-all-classes" class="btn-secondary btn-full" style="color: var(--danger); margin-bottom: 12px; border-color: rgba(239,68,68,0.2);">Clear All Classes</button>
+          <button id="btn-clear-all-exams" class="btn-secondary btn-full" style="color: var(--danger); margin-bottom: 12px; border-color: rgba(239,68,68,0.2);">Clear All Exams</button>
+          <button id="btn-logout" class="btn-secondary btn-full" style="color: var(--danger); border-color: rgba(239,68,68,0.2);">Log Out</button>
+
         </div>
       </div>
     </div>
@@ -644,77 +654,34 @@
 
 </div><!-- end #app -->
 
-<!-- Supabase -->
+<!-- SYNC PROMPT MODAL -->
+<div id="modal-sync-prompt" class="modal-overlay hidden" role="dialog">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Sync Global Exams</h2>
+      <button class="modal-close" data-modal="modal-sync-prompt" aria-label="Close">
+        <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p id="sync-prompt-text" style="color: var(--text2); margin-bottom: 16px; font-size: 0.95rem; line-height: 1.5;"></p>
+      <button id="btn-sync-now" class="btn-primary btn-full">Sync to My Exams</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<!-- PDF.js for Admin PDF Parsing -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
-  var pdfjsLib = window['pdfjs-dist/build/pdf'];
-  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-</script>
-<script src="main.js"></script>
-<script>
-// Sidebar nav sync — mirrors bottom nav behaviour
-document.addEventListener('DOMContentLoaded', () => {
-  const sbMap = {
-    'sb-home': 'nav-home', 'sb-schedule': 'nav-schedule',
-    'sb-exams': 'nav-exams', 'sb-search': 'nav-search', 'sb-planner': 'nav-planner'
-  };
-  const sbItems = document.querySelectorAll('.sidebar-item[data-tab]');
-  const updateSidebar = (activeTab) => {
-    sbItems.forEach(b => {
-      b.classList.toggle('active', b.dataset.tab === activeTab);
-    });
-  };
-  sbItems.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const navBtn = document.getElementById(sbMap[btn.id]);
-      if (navBtn) navBtn.click();
-      updateSidebar(btn.dataset.tab);
-    });
-  });
-  // Keep sidebar in sync when bottom nav is clicked
-  document.querySelectorAll('.nav-item[data-tab]').forEach(nav => {
-    nav.addEventListener('click', () => updateSidebar(nav.dataset.tab));
-  });
-  // Sidebar Add button → FAB sheet
-  const sbAdd = document.getElementById('sb-add-btn');
-  if (sbAdd) sbAdd.addEventListener('click', () => document.getElementById('nav-add').click());
-  // Sidebar Help / Settings
-  const sbHelp = document.getElementById('sb-help');
-  if (sbHelp) sbHelp.addEventListener('click', () => document.getElementById('btn-help').click());
-  const sbSettings = document.getElementById('sb-settings');
-  if (sbSettings) sbSettings.addEventListener('click', () => document.getElementById('btn-settings').click());
-  // Sidebar theme buttons
-  document.querySelectorAll('.sidebar-theme-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.theme-btn[data-theme="'+btn.dataset.theme+'"]')[0]?.click();
-      document.querySelectorAll('.sidebar-theme-btn').forEach(b => b.classList.toggle('active', b === btn));
-    });
-  });
-  // Sync sidebar theme active state on load
-  const syncSbTheme = () => {
-    const cur = document.body.className;
-    document.querySelectorAll('.sidebar-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === cur));
-  };
-  syncSbTheme();
-  document.querySelectorAll('.theme-btn').forEach(b => b.addEventListener('click', syncSbTheme));
-  // Live ticker dot class
-  const origUpdateTimers = window.updateTimers;
-  setInterval(() => {
-    const dot = document.getElementById('ticker-dot');
-    if (!dot) return;
-    const text = document.getElementById('ticker-text')?.textContent || '';
-    dot.classList.toggle('live', text.includes('Now:'));
-  }, 1000);
-});
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <!-- Admin Modal -->
   <div id="modal-admin" class="modal-overlay hidden">
-    <div class="modal-content">
+    <div class="modal-card">
       <div class="modal-header">
         <h2>Admin Panel - Global Exam Sync</h2>
-        <button class="modal-close" data-modal="modal-admin">&times;</button>
+        <button class="modal-close" data-modal="modal-admin" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div class="modal-body">
         <div class="setting-group">
@@ -725,9 +692,9 @@ document.addEventListener('DOMContentLoaded', () => {
           </select>
         </div>
         <div class="setting-group">
-          <label class="setting-label">Step 2: Upload Schedule PDF</label>
-          <input type="file" id="admin-pdf-upload" accept="application/pdf" style="margin-top: 8px;" />
-          <p id="admin-pdf-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+          <label class="setting-label">Step 2: Upload Exam Schedule (Excel/CSV)</label>
+          <input type="file" id="admin-exam-upload" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
+          <p id="admin-exam-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
         </div>
         <div style="margin-top: 20px;">
           <button id="btn-admin-process" class="btn-primary" style="width: 100%;">🚀 Parse & Sync Global Database</button>
@@ -738,7 +705,18 @@ document.addEventListener('DOMContentLoaded', () => {
         <hr style="border:0; border-top: 1px solid var(--border); margin: 20px 0;">
         
         <div class="setting-group">
-          <label class="setting-label">Step 3: Upload Planner Data (Excel/CSV)</label>
+          <label class="setting-label">Step 3: Upload Global Course Catalog (Excel/CSV)</label>
+          <input type="file" id="admin-catalog-file" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
+          <p id="admin-catalog-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="btn-admin-catalog-process" class="btn-primary" style="width: 100%; background: var(--amber);">📊 Parse & Sync Course Catalog</button>
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+        <div class="setting-group">
+          <label class="setting-label">Step 4: Upload Planner Data (Excel/CSV)</label>
           <input type="file" id="admin-planner-file" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
           <p id="admin-planner-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
         </div>
@@ -751,10 +729,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <!-- Sync Prompt Modal -->
   <div id="modal-sync-prompt" class="modal-overlay hidden">
-    <div class="modal-content" style="max-width: 400px;">
+    <div class="modal-card" style="max-width: 400px;">
       <div class="modal-header">
         <h2>✨ Sync New Exams?</h2>
-        <button class="modal-close" data-modal="modal-sync-prompt">&times;</button>
+        <button class="modal-close" data-modal="modal-sync-prompt" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div class="modal-body">
         <p id="sync-prompt-text" style="margin-bottom: 20px;">We found new exams matching your courses. Would you like to add them to your schedule?</p>
