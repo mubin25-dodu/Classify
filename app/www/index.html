@@ -3,18 +3,63 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-  <title>Classify — Smart Class Scheduler</title>
-  <meta name="description" content="Classify: mobile-first class & exam scheduler with cross-device sync."/>
+  
+  <!-- Primary Meta Tags -->
+  <title>Classify</title>
+  <meta name="title" content="Classify — Best Class & Exam Routine Scheduler for AIUB, UIU, NSU">
+  <meta name="description" content="Classify is the ultimate smart class scheduler, exam tracker, and routine manager for university students. Perfect for AIUB, UIU, NSU, BRACU, EWU, and IUB students. Sync across devices easily."/>
+  <meta name="keywords" content="class scheduler, exam tracker, routine manager, AIUB class schedule, AIUB routine, UIU routine, NSU timetable, BRACU class tracker, university class manager, student planner app, Bangladesh university routine, class reminder, student timetable"/>
+  <meta name="author" content="Classify"/>
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="English">
   <meta name="theme-color" content="#070b14"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://classify.app/">
+  <meta property="og:title" content="Classify — Smart Class & Exam Scheduler">
+  <meta property="og:description" content="The ultimate smart class scheduler and routine manager for university students. Perfect for AIUB, UIU, NSU, and more. Sync your schedule seamlessly across all devices.">
+  <meta property="og:image" content="https://classify.app/meta-image.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://classify.app/">
+  <meta property="twitter:title" content="Classify — Smart Class & Exam Scheduler">
+  <meta property="twitter:description" content="The ultimate smart class scheduler and routine manager for university students. Perfect for AIUB, UIU, NSU, and more. Sync your schedule seamlessly across all devices.">
+  <meta property="twitter:image" content="https://classify.app/meta-image.png">
+
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="styles.css"/>
+  
+  <!-- Structured Data / JSON-LD -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Classify",
+      "url": "https://classify.app/",
+      "description": "A mobile-first smart class scheduler, exam tracker, and routine manager designed for university students (AIUB, UIU, NSU, etc).",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Any"
+    }
+  </script>
+  
+  <!-- PDF.js for Admin Panel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+  <!-- SheetJS for Admin Excel Parsing -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<!-- KEY OVERLAY -->
-<div id="key-overlay" class="key-overlay">
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay" class="key-overlay">
   <div class="key-bg-mesh"></div>
   <div class="key-card">
     <div class="key-logo">
@@ -25,31 +70,36 @@
       <p class="key-subtitle">Smart Class &amp; Exam Scheduler</p>
     </div>
     <div class="key-tabs" role="tablist">
-      <button class="key-tab active" id="tab-new" role="tab" aria-selected="true" data-tab="new">New Schedule</button>
-      <button class="key-tab" id="tab-existing" role="tab" aria-selected="false" data-tab="existing">Use Existing Key</button>
+      <button class="key-tab active" id="tab-login" role="tab" aria-selected="true" data-tab="login">Login</button>
+      <button class="key-tab" id="tab-register" role="tab" aria-selected="false" data-tab="register">Register</button>
     </div>
-    <div id="panel-new" class="key-panel active">
-      <p class="key-info">Create a new personal schedule. You'll receive a unique key — <strong>save it</strong> to sync across devices.</p>
-      <button id="btn-create-key" class="btn-primary btn-full">✨ Create My Schedule</button>
+    <div id="panel-login" class="key-panel active">
+      <form id="login-form" novalidate>
+        <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Email</label>
+          <input type="email" id="login-email" class="key-input" placeholder="Enter your email" required/>
+        </div>
+        <div class="form-group" style="text-align: left; margin-bottom: 16px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Password</label>
+          <input type="password" id="login-password" class="key-input" placeholder="Enter your password" required/>
+        </div>
+        <button type="submit" id="btn-login" class="btn-primary btn-full">🔑 Login</button>
+      </form>
     </div>
-    <div id="panel-existing" class="key-panel">
-      <p class="key-info">Enter a key to restore your schedule, or import someone else's as a new copy.</p>
-      <input id="existing-key-input" type="text" class="key-input" placeholder="Paste key here…" autocomplete="off" spellcheck="false"/>
-      <div style="display: flex; gap: 10px; margin-top: 16px;">
-        <button id="btn-use-key" class="btn-primary" style="flex: 1;">🔑 Sync</button>
-        <button id="btn-import-key" class="btn-secondary" style="flex: 1; border: 1px solid var(--border); background: var(--bg2); color: var(--text1);">📥 Import Copy</button>
-      </div>
+    <div id="panel-register" class="key-panel">
+      <form id="register-form" novalidate>
+        <div class="form-group" style="text-align: left; margin-bottom: 12px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Email</label>
+          <input type="email" id="register-email" class="key-input" placeholder="Enter your email" required/>
+        </div>
+        <div class="form-group" style="text-align: left; margin-bottom: 16px;">
+          <label style="display:block; margin-bottom: 4px; font-size: 0.85rem; color: var(--text2);">Password</label>
+          <input type="password" id="register-password" class="key-input" placeholder="Create a password" required/>
+        </div>
+        <button type="submit" id="btn-register" class="btn-primary btn-full">✨ Create Account</button>
+      </form>
     </div>
-    <div id="panel-key-display" class="key-panel">
-      <div class="key-display-box">
-        <p class="key-display-label">Your Unique Key</p>
-        <code id="generated-key-text" class="key-display-value"></code>
-        <button id="btn-copy-key" class="btn-copy">📋 Copy Key</button>
-      </div>
-      <div class="key-warning">⚠️ Save this key somewhere safe. You'll need it to access your schedule from other devices. It cannot be recovered if lost.</div>
-      <button id="btn-start-app" class="btn-primary btn-full">🚀 Start Classify</button>
-    </div>
-    <p id="key-error" class="key-error hidden"></p>
+    <p id="auth-error" class="key-error hidden"></p>
   </div>
 </div>
 
@@ -75,6 +125,10 @@
         <span class="sidebar-icon"><svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
         Search
       </button>
+      <button class="sidebar-item" id="sb-planner" data-tab="planner">
+        <span class="sidebar-icon"><svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5" rx="2"/><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.5"/></svg></span>
+        Routine Planner
+      </button>
     </div>
     <button class="sidebar-add-btn" id="sb-add-btn">
       <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
@@ -87,8 +141,12 @@
           Help
         </button>
         <button class="sidebar-footer-btn" id="sb-settings">
-          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           Settings
+        </button>
+        <button class="sidebar-footer-btn hidden" id="sb-admin" style="color: var(--accent);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Admin Panel
         </button>
       </div>
       <div class="sidebar-theme-row">
@@ -118,7 +176,10 @@
         <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 14v-1M10 6a2 2 0 0 1 0 4c-.8.3-1 1-1 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
       <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">
-        <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="18" height="18"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      <button id="btn-admin-top" class="icon-btn hidden" title="Admin Panel" style="color: var(--accent);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
       </button>
     </div>
   </header>
@@ -166,7 +227,10 @@
     <section id="tab-schedule" class="tab-section" role="tabpanel">
       <div class="section-header">
         <h2 class="section-title">Weekly Schedule</h2>
-        <button class="btn-pill" id="btn-add-class-shortcut">+ Add Class</button>
+        <div>
+          <button class="btn-danger btn-mini" id="btn-clear-all-classes-shortcut" style="margin-right:8px;">🗑️ Clear All</button>
+          <button class="btn-pill" id="btn-add-class-shortcut">+ Add Class</button>
+        </div>
       </div>
       <div id="routine-container" class="routine-grid">
         <p class="empty-state full-empty">No classes added yet.<br/>Tap <strong>+</strong> to get started.</p>
@@ -177,20 +241,50 @@
     <section id="tab-exams" class="tab-section" role="tabpanel">
       <div class="section-header">
         <h2 class="section-title">Tasks & Exams</h2>
-        <div>
-          <button class="btn-pill" id="btn-add-task-shortcut" style="margin-right: 6px;">+ Add Task</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn-secondary" id="btn-sync-global-exams" title="Sync with Global DB" style="padding: 7px 12px; font-size: 0.75rem; border-radius: 20px; display: flex; align-items: center; gap: 6px;">
+            <span class="sync-icon">🔄</span> Sync the Exams
+          </button>
+          <button class="btn-pill" id="btn-add-task-shortcut">+ Add Task</button>
           <button class="btn-pill" id="btn-add-exam-shortcut">+ Add Exam</button>
         </div>
       </div>
       
-      <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text2);">Tasks</h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+        <h3 style="font-size: 0.9rem; color: var(--text2); margin:0;">Tasks</h3>
+        <button class="btn-mini btn-danger" id="btn-clear-all-tasks-shortcut" style="font-size:0.7rem; padding:4px 8px;">🗑️ Clear Tasks</button>
+      </div>
       <div id="task-list-container" class="exam-list" style="margin-bottom: 24px;">
         <p class="empty-state full-empty" style="padding: 24px 16px;">No tasks yet.<br/>Tap <strong>+ Add Task</strong>.</p>
       </div>
 
-      <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text2);">Exams</h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+        <h3 style="font-size: 0.9rem; color: var(--text2); margin:0;">Exams</h3>
+        <button class="btn-mini btn-danger" id="btn-clear-all-exams-shortcut" style="font-size:0.7rem; padding:4px 8px;">🗑️ Clear Exams</button>
+      </div>
       <div id="exam-list-container" class="exam-list">
         <p class="empty-state full-empty" style="padding: 24px 16px;">No exams scheduled yet.<br/>Tap <strong>+ Add Exam</strong>.</p>
+      </div>
+    </section>
+
+    <!-- PLANNER TAB -->
+    <section id="tab-planner" class="tab-section" role="tabpanel">
+      <div class="section-header">
+        <h2 class="section-title">Next Semester Planner</h2>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-danger btn-mini" id="btn-clear-planner-shortcut">🗑️ Clear Plan</button>
+        </div>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 20 20" fill="none" width="16" height="16" class="search-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input id="planner-search-input" type="text" placeholder="Search next semester courses..." autocomplete="off"/>
+        <button id="btn-clear-planner-search" class="search-clear hidden" aria-label="Clear">✕</button>
+      </div>
+      <div id="planner-search-results" class="search-results"></div>
+
+      <h3 style="font-size: 0.9rem; margin-top: 16px; margin-bottom: 8px; color: var(--text2);">My Planned Schedule</h3>
+      <div id="planner-container" class="routine-grid">
+        <p class="empty-state full-empty">No planned courses yet.<br/>Search above to add to your plan.</p>
       </div>
     </section>
 
@@ -204,7 +298,7 @@
         <input id="course-search-input" type="text" placeholder="Search by title, code or section…" autocomplete="off"/>
         <button id="btn-clear-search" class="search-clear hidden" aria-label="Clear">✕</button>
       </div>
-      <div id="search-results" class="search-results"></div>
+      <div id="search-results" class="search-results-container"></div>
 
       <div class="divider-or"><span>or add manually</span></div>
 
@@ -249,7 +343,11 @@
                 <option value="Lab">Lab</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" style="flex: 1;">
+              <label for="f-section">Section</label>
+              <input type="text" id="f-section" placeholder="e.g. A"/>
+            </div>
+            <div class="form-group" style="flex: 2;">
               <label for="f-room">Room</label>
               <input type="text" id="f-room" placeholder="e.g. 301"/>
             </div>
@@ -313,7 +411,13 @@
       </div>
     </section>
 
+
   </main>
+
+  <!-- FLOATING ACTION BUTTON -->
+  <button class="nav-fab" id="nav-add" aria-label="Add">
+    <svg viewBox="0 0 24 24" fill="none" width="28" height="28"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+  </button>
 
   <!-- BOTTOM NAV -->
   <nav class="bottom-nav" role="navigation" aria-label="Main navigation">
@@ -325,9 +429,7 @@
       <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><rect x="2" y="4" width="16" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M6 2v4M14 2v4M2 9h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span class="nav-label">Schedule</span>
     </button>
-    <button class="nav-item nav-fab" id="nav-add" aria-label="Add">
-      <svg viewBox="0 0 24 24" fill="none" width="26" height="26"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
-    </button>
+
     <button class="nav-item" id="nav-exams" data-tab="exams" aria-label="Tasks & Exams">
       <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5" rx="2"/><path d="M7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span class="nav-label">Tasks/Exams</span>
@@ -335,6 +437,10 @@
     <button class="nav-item" id="nav-search" data-tab="search" aria-label="Search">
       <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span class="nav-label">Search</span>
+    </button>
+    <button class="nav-item" id="nav-planner" data-tab="planner" aria-label="Planner">
+      <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5" rx="2"/><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span class="nav-label">Planner</span>
     </button>
   </nav>
 
@@ -379,6 +485,16 @@
         <div class="sheet-opt-sub">Find from the AIU course database</div>
       </div>
     </button>
+    <button id="fab-upload-personal" class="sheet-option">
+      <span class="sheet-opt-icon">
+        <svg viewBox="0 0 20 20" fill="none" width="22" height="22"><path d="M4 16v1a3 3 0 003 3h6a3 3 0 003-3v-1m-4-4l-3-3m0 0l-3 3m3-3v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <div>
+        <div class="sheet-opt-title">Upload Excel Routine</div>
+        <div class="sheet-opt-sub">Import from your registration slip</div>
+      </div>
+    </button>
+    <input type="file" id="user-routine-upload" accept=".xlsx, .xls, .csv" style="display: none;">
   </div>
 
   <!-- SETTINGS MODAL -->
@@ -410,10 +526,11 @@
           </div>
         </div>
         <div class="setting-group">
-          <label class="setting-label">Your Schedule Key</label>
+          <label class="setting-label">Share Your Schedule</label>
+          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Share this ID with friends so they can import your schedule.</p>
           <div class="key-row">
-            <code id="settings-key-display" class="mini-key"></code>
-            <button id="btn-copy-settings-key" class="btn-mini">Copy</button>
+            <code id="settings-share-id-display" class="mini-key"></code>
+            <button id="btn-copy-share-id" class="btn-mini">Copy</button>
           </div>
         </div>
         <div class="setting-group">
@@ -422,17 +539,18 @@
         </div>
         <div class="setting-group">
           <label class="setting-label">Import Schedule</label>
-          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Merge data from another key into your current schedule.</p>
+          <p style="font-size: 0.85rem; color: var(--text2); margin-bottom: 8px;">Merge data using a friend's Share ID.</p>
           <div style="display: flex; gap: 8px;">
-            <input id="settings-import-key-input" type="text" class="key-input" style="flex: 1; padding: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text);" placeholder="Paste key here..." spellcheck="false" autocomplete="off" />
+            <input id="settings-import-key-input" type="text" class="key-input" style="flex: 1; padding: 8px; border-radius: var(--r-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text);" placeholder="Paste Share ID here..." spellcheck="false" autocomplete="off" />
             <button id="btn-settings-import-key" class="btn-secondary" style="padding: 8px 16px;">Import</button>
           </div>
         </div>
         <div class="danger-zone">
-          <p class="danger-label">Danger Zone</p>
-          <button id="btn-clear-all-classes" class="btn-danger">🗑 Clear All Classes</button>
-          <button id="btn-clear-all-exams" class="btn-danger">🗑 Clear All Exams</button>
-          <button id="btn-change-key" class="btn-danger">🔑 Change Key / Logout</button>
+          <div class="divider"></div>
+          <button id="btn-clear-all-classes" class="btn-secondary btn-full" style="color: var(--danger); margin-bottom: 12px; border-color: rgba(239,68,68,0.2);">Clear All Classes</button>
+          <button id="btn-clear-all-exams" class="btn-secondary btn-full" style="color: var(--danger); margin-bottom: 12px; border-color: rgba(239,68,68,0.2);">Clear All Exams</button>
+          <button id="btn-logout" class="btn-secondary btn-full" style="color: var(--danger); border-color: rgba(239,68,68,0.2);">Log Out</button>
+
         </div>
       </div>
     </div>
@@ -470,7 +588,10 @@
       <div class="modal-body">
         <form id="edit-class-form" novalidate>
           <input type="hidden" id="edit-class-id"/>
-          <div class="form-group"><label for="ec-course">Course Name</label><input type="text" id="ec-course" required/></div>
+          <div class="form-row">
+            <div class="form-group"><label for="ec-course">Course Name</label><input type="text" id="ec-course" required/></div>
+            <div class="form-group"><label for="ec-section">Section</label><input type="text" id="ec-section" placeholder="e.g. A"/></div>
+          </div>
           <div class="form-row">
             <div class="form-group"><label for="ec-start">Start Time</label><input type="time" id="ec-start" required/></div>
             <div class="form-group"><label for="ec-end">End Time</label><input type="time" id="ec-end" required/></div>
@@ -548,64 +669,122 @@
 
 </div><!-- end #app -->
 
+<!-- SYNC PROMPT MODAL -->
+<div id="modal-sync-prompt" class="modal-overlay hidden" role="dialog">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h2>Sync Global Exams</h2>
+      <button class="modal-close" data-modal="modal-sync-prompt" aria-label="Close">
+        <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p id="sync-prompt-text" style="color: var(--text2); margin-bottom: 16px; font-size: 0.95rem; line-height: 1.5;"></p>
+      <button id="btn-sync-now" class="btn-primary btn-full">Sync to My Exams</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="main.js"></script>
-<script>
-// Sidebar nav sync — mirrors bottom nav behaviour
-document.addEventListener('DOMContentLoaded', () => {
-  const sbMap = {
-    'sb-home': 'nav-home', 'sb-schedule': 'nav-schedule',
-    'sb-exams': 'nav-exams', 'sb-search': 'nav-search'
-  };
-  const sbItems = document.querySelectorAll('.sidebar-item[data-tab]');
-  const updateSidebar = (activeTab) => {
-    sbItems.forEach(b => {
-      b.classList.toggle('active', b.dataset.tab === activeTab);
-    });
-  };
-  sbItems.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const navBtn = document.getElementById(sbMap[btn.id]);
-      if (navBtn) navBtn.click();
-      updateSidebar(btn.dataset.tab);
-    });
-  });
-  // Keep sidebar in sync when bottom nav is clicked
-  document.querySelectorAll('.nav-item[data-tab]').forEach(nav => {
-    nav.addEventListener('click', () => updateSidebar(nav.dataset.tab));
-  });
-  // Sidebar Add button → FAB sheet
-  const sbAdd = document.getElementById('sb-add-btn');
-  if (sbAdd) sbAdd.addEventListener('click', () => document.getElementById('nav-add').click());
-  // Sidebar Help / Settings
-  const sbHelp = document.getElementById('sb-help');
-  if (sbHelp) sbHelp.addEventListener('click', () => document.getElementById('btn-help').click());
-  const sbSettings = document.getElementById('sb-settings');
-  if (sbSettings) sbSettings.addEventListener('click', () => document.getElementById('btn-settings').click());
-  // Sidebar theme buttons
-  document.querySelectorAll('.sidebar-theme-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.theme-btn[data-theme="'+btn.dataset.theme+'"]')[0]?.click();
-      document.querySelectorAll('.sidebar-theme-btn').forEach(b => b.classList.toggle('active', b === btn));
-    });
-  });
-  // Sync sidebar theme active state on load
-  const syncSbTheme = () => {
-    const cur = document.body.className;
-    document.querySelectorAll('.sidebar-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === cur));
-  };
-  syncSbTheme();
-  document.querySelectorAll('.theme-btn').forEach(b => b.addEventListener('click', syncSbTheme));
-  // Live ticker dot class
-  const origUpdateTimers = window.updateTimers;
-  setInterval(() => {
-    const dot = document.getElementById('ticker-dot');
-    if (!dot) return;
-    const text = document.getElementById('ticker-text')?.textContent || '';
-    dot.classList.toggle('live', text.includes('Now:'));
-  }, 1000);
-});
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Admin Modal -->
+  <div id="modal-admin" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Admin Panel - Global Exam Sync</h2>
+        <button class="modal-close" data-modal="modal-admin" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label class="setting-label">Step 1: Select Exam Type</label>
+          <select id="admin-exam-type" class="key-input">
+            <option value="Final">Final Exam Time (No Label)</option>
+            <option value="Tentative">Tentative Exam Time</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">Step 2: Upload Exam Schedule (Excel/CSV)</label>
+          <input type="file" id="admin-exam-upload" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
+          <p id="admin-exam-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+        </div>
+        <div style="margin-top: 15px;">
+          <button id="btn-admin-process" class="btn-primary" style="width: 100%;">🚀 Sync from Excel/CSV File</button>
+        </div>
+
+        <div style="margin-top: 20px; border: 1px dashed var(--border); padding: 12px; border-radius: var(--r);">
+          <label class="setting-label" style="display:block; margin-bottom:8px;">OR Paste Raw Exam Text</label>
+          <textarea id="admin-exam-paste" placeholder="Copy from PDF and paste here..." style="width:100%; height:120px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:8px; font-size:0.8rem; outline:none; resize:vertical;"></textarea>
+          <button id="btn-admin-paste-process" class="btn-primary" style="width: 100%; margin-top:10px; background:var(--primary-l);">🚀 Sync Pasted Exams</button>
+        </div>
+        <div id="admin-results" class="hidden" style="margin-top: 15px; max-height: 200px; overflow-y: auto; background: var(--surface2); padding: 10px; border-radius: 8px; font-size: 0.8rem;">
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 20px 0;">
+        
+        <div class="setting-group">
+          <label class="setting-label">Step 3: Upload Global Course Catalog (Excel/CSV)</label>
+          <input type="file" id="admin-catalog-file" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
+          <p id="admin-catalog-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="btn-admin-catalog-process" class="btn-primary" style="width: 100%; background: var(--amber);">📊 Parse & Sync Course Catalog</button>
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 20px 0;">
+
+        <div class="setting-group">
+          <label class="setting-label">Step 4: Upload Planner Data (Excel/CSV)</label>
+          <input type="file" id="admin-planner-file" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
+          <p id="admin-planner-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="btn-admin-planner-process" class="btn-primary" style="width: 100%; background: var(--pink);">🚀 Sync Planner Template</button>
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 25px 0;">
+        
+        <div class="setting-group" style="background: rgba(239, 68, 68, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+          <label class="setting-label" style="color: #ef4444; margin-bottom: 12px; display: block;">⚠️ Maintenance & Cleanup</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button id="btn-clear-exams" class="btn-primary" style="background: var(--surface3); color: var(--text); border: 1px solid var(--border); font-size: 0.75rem; padding: 10px 5px;">Clear Exams</button>
+            <button id="btn-clear-classes" class="btn-primary" style="background: var(--surface3); color: var(--text); border: 1px solid var(--border); font-size: 0.75rem; padding: 10px 5px;">Clear Catalog</button>
+            <button id="btn-clear-planner" class="btn-primary" style="background: var(--surface3); color: var(--text); border: 1px solid var(--border); font-size: 0.75rem; padding: 10px 5px;">Clear Planner</button>
+            <button id="btn-clear-all" class="btn-primary" style="background: #ef4444; color: #fff; font-size: 0.75rem; padding: 10px 5px;">Wipe All Data</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Prompt Modal -->
+  <div id="modal-sync-prompt" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>✨ Sync New Exams?</h2>
+        <button class="modal-close" data-modal="modal-sync-prompt" aria-label="Close">
+          <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="sync-prompt-text" style="margin-bottom: 20px;">We found new exams matching your courses. Would you like to add them to your schedule?</p>
+        <div style="display: flex; gap: 10px;">
+          <button id="btn-sync-now" class="btn-primary" style="flex: 1;">Sync Now</button>
+          <button class="btn-secondary modal-close" data-modal="modal-sync-prompt" style="flex: 1;">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <div id="loader" class="loader-overlay hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="main.js"></script>
 </body>
 </html>
 
