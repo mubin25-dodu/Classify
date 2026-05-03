@@ -61,6 +61,62 @@ document.addEventListener('DOMContentLoaded', async () => {
                 hideLoader();
             }
         });
+    }
+
+    // PASTE MODE
+    const pasteBtn = document.getElementById('btn-admin-paste-process');
+    const pasteArea = document.getElementById('admin-exam-paste');
+
+    if (pasteBtn) {
+        pasteBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const text = pasteArea?.value?.trim();
+            if (!text) { showToast('Please paste some text first.'); return; }
+            
+            showLoader();
+            if (status) status.textContent = 'Parsing pasted text...';
+            if (resultsDiv) resultsDiv.classList.add('hidden');
+
+            try {
+                // Split by newlines, then split each line by multiple spaces to simulate columns
+                const rows = text.split('\n').map(line => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return null;
+                    // Split by 2 or more spaces, or tab
+                    return trimmed.split(/\s{2,}|\t/);
+                }).filter(Boolean);
+
+                const parsedExams = parseExamExcelJSON(rows);
+
+                if (parsedExams.length === 0) {
+                    if (status) status.textContent = 'No exams found in pasted text. Check format.';
+                    if (resultsDiv) {
+                        resultsDiv.classList.remove('hidden');
+                        resultsDiv.innerHTML = `<div style="color:var(--pink); font-weight:700; margin-bottom:8px;">Debug: No matches in ${rows.length} rows.</div>` + 
+                            rows.slice(0, 10).map(r => `<div style="border-bottom:1px solid var(--border); padding:4px;">Row: ${JSON.stringify(r)}</div>`).join('');
+                    }
+                } else {
+                    const examType = document.getElementById('admin-exam-type')?.value || '';
+                    parsedExams.forEach(ex => ex.exam_type = examType);
+                    
+                    if (status) status.textContent = `Found ${parsedExams.length} exams. Syncing...`;
+                    await db.from('global_exams').delete().neq('id', 0);
+                    
+                    for (let i = 0; i < parsedExams.length; i += 500) {
+                        const { error } = await db.from('global_exams').insert(parsedExams.slice(i, i+500));
+                        if (error) throw error;
+                    }
+                    
+                    if (status) status.textContent = `✅ Successfully synced ${parsedExams.length} exams!`;
+                    if (pasteArea) pasteArea.value = ''; // Clear after success
+                }
+            } catch (err) {
+                console.error(err);
+                if (status) status.textContent = 'Error: ' + err.message;
+            } finally {
+                hideLoader();
+            }
+        });
     } else {
         showToast("Error: Supabase client not loaded");
     }
@@ -301,6 +357,33 @@ function setupNavigation() {
         document.getElementById('nav-search').click();
         document.getElementById('manual-task-form-wrap').scrollIntoView({behavior: 'smooth'});
     });
+
+    const manualSyncBtn = document.getElementById('btn-sync-global-exams');
+    if (manualSyncBtn) {
+        manualSyncBtn.addEventListener('click', async () => {
+            const oldText = manualSyncBtn.innerHTML;
+            manualSyncBtn.disabled = true;
+            manualSyncBtn.innerHTML = '<span class="sync-icon spinning">🔄</span> Syncing...';
+            try {
+                await checkGlobalExams();
+                // If the modal didn't show up, show a toast
+                setTimeout(() => {
+                    const modal = document.getElementById('modal-sync-prompt');
+                    if (!modal || modal.classList.contains('hidden')) {
+                        showToast('No new exams found for your courses.');
+                    }
+                }, 1000);
+            } catch (e) {
+                console.error(e);
+                showToast('Sync error. Please try again.');
+            } finally {
+                setTimeout(() => {
+                    manualSyncBtn.disabled = false;
+                    manualSyncBtn.innerHTML = oldText;
+                }, 1000);
+            }
+        });
+    }
 }function setupModals() {
     document.getElementById('btn-settings').addEventListener('click', () => document.getElementById('modal-settings').classList.remove('hidden'));
     document.getElementById('btn-help').addEventListener('click', () => document.getElementById('modal-help').classList.remove('hidden'));
@@ -406,6 +489,40 @@ function setupNavigation() {
             btn.textContent = oldText;
             btn.disabled = false;
             hideLoader();
+        }
+    });
+
+    // CLEAR ALL SHORTCUTS
+    document.getElementById('btn-clear-all-classes-shortcut')?.addEventListener('click', async () => {
+        if(confirm("Are you sure you want to delete ALL classes?")) {
+            showLoader();
+            await db.from('classes').delete().eq('user_id', userKey);
+            classes = []; updateAllViews(); hideLoader();
+            showToast('All classes cleared');
+        }
+    });
+    document.getElementById('btn-clear-all-tasks-shortcut')?.addEventListener('click', async () => {
+        if(confirm("Are you sure you want to delete ALL tasks?")) {
+            showLoader();
+            await db.from('tasks').delete().eq('user_id', userKey);
+            tasks = []; updateAllViews(); hideLoader();
+            showToast('All tasks cleared');
+        }
+    });
+    document.getElementById('btn-clear-all-exams-shortcut')?.addEventListener('click', async () => {
+        if(confirm("Are you sure you want to delete ALL exams?")) {
+            showLoader();
+            await db.from('exams').delete().eq('user_id', userKey);
+            exams = []; updateAllViews(); hideLoader();
+            showToast('All exams cleared');
+        }
+    });
+    document.getElementById('btn-clear-planner-shortcut')?.addEventListener('click', async () => {
+        if(confirm("Are you sure you want to clear your entire PLAN?")) {
+            showLoader();
+            await db.from('planner_schedule').delete().eq('user_id', userKey);
+            plannerSchedule = []; renderPlanner(); hideLoader();
+            showToast('Plan cleared');
         }
     });
 
@@ -648,13 +765,24 @@ window.editClass = function(id) {
 };
 
 window.deleteClass = async function(id) {
-    if(!confirm("Delete this class?")) return;
     const idx = classes.findIndex(c => c.id === id);
     if(idx === -1) return;
+    if(!confirm("Delete this class?")) return;
+    
     const deleted = classes[idx];
-    classes.splice(idx, 1); updateAllViews();
+    // Optimistic Update
+    classes.splice(idx, 1); 
+    updateAllViews();
+    
     const { error } = await db.from('classes').delete().eq('id', id);
-    if (!error) showUndo('Class deleted', 'class', deleted, idx);
+    if (!error) {
+        showUndo('Class deleted', 'class', deleted, idx);
+    } else {
+        // Rollback if failed
+        classes.splice(idx, 0, deleted);
+        updateAllViews();
+        showToast('Error deleting class.');
+    }
 };
 
 window.editExam = function(id) {
@@ -669,13 +797,24 @@ window.editExam = function(id) {
 };
 
 window.deleteExam = async function(id) {
-    if(!confirm("Delete this exam?")) return;
     const idx = exams.findIndex(e => e.id === id);
     if(idx === -1) return;
+    if(!confirm("Delete this exam?")) return;
+
     const deleted = exams[idx];
-    exams.splice(idx, 1); updateAllViews();
+    // Optimistic Update
+    exams.splice(idx, 1);
+    updateAllViews();
+
     const { error } = await db.from('exams').delete().eq('id', id);
-    if (!error) showUndo('Exam deleted', 'exam', deleted, idx);
+    if (!error) {
+        showUndo('Exam deleted', 'exam', deleted, idx);
+    } else {
+        // Rollback
+        exams.splice(idx, 0, deleted);
+        updateAllViews();
+        showToast('Error deleting exam.');
+    }
 };
 
 window.editTask = function(id) {
@@ -689,13 +828,24 @@ window.editTask = function(id) {
 };
 
 window.deleteTask = async function(id) {
-    if(!confirm("Delete this task?")) return;
     const idx = tasks.findIndex(x => x.id === id);
     if(idx === -1) return;
+    if(!confirm("Delete this task?")) return;
+
     const deleted = tasks[idx];
-    tasks.splice(idx, 1); updateAllViews();
+    // Optimistic Update
+    tasks.splice(idx, 1);
+    updateAllViews();
+
     const { error } = await db.from('tasks').delete().eq('id', id);
-    if (!error) showUndo('Task deleted', 'task', deleted, idx);
+    if (!error) {
+        showUndo('Task deleted', 'task', deleted, idx);
+    } else {
+        // Rollback
+        tasks.splice(idx, 0, deleted);
+        updateAllViews();
+        showToast('Error deleting task.');
+    }
 };
 
 function showUndo(msg, type, data, index) {
@@ -776,7 +926,7 @@ function renderExams() {
                     </div>
                 </div>
                 <div class="exam-card-meta">
-                    ≡ƒôà ${new Date(exam.date).toLocaleDateString()} at ${convertTo12Hour(exam.time)}
+                    📅 ${new Date(exam.date).toLocaleDateString()} at ${convertTo12Hour(exam.time)}
                 </div>
                 ${exam.notes ? `<div class="exam-card-notes">Notes: ${exam.notes}</div>` : ''}
                 <div class="exam-card-countdown" data-exam-id="${exam.id}">
@@ -874,10 +1024,11 @@ function renderTasks() {
                 <div class="today-class-card ${statusClass}">
                     <div class="class-type-dot ${cls.type.toLowerCase() === 'lab' ? 'dot-lab' : 'dot-theory'}"></div>
                     <div class="class-card-info">
-                        <div class="class-card-name">${cls.course}</div>
+                        <div class="class-card-name">${cls.course}${cls.section ? ' [' + cls.section + ']' : ''}</div>
                         <div class="class-card-meta">Room ${cls.room || 'TBA'} | ${cls.type}</div>
                     </div>
                     <div class="class-card-time">
+                        <div id="card-timer-${cls.id}" style="font-size:0.7rem; font-weight:700; color:var(--primary); margin-bottom:2px;"></div>
                         <span class="class-card-time-start">${convertTo12Hour(cls.start_time)}</span>
                         <span class="class-card-time-end">to ${convertTo12Hour(cls.end_time)}</span>
                     </div>
@@ -887,6 +1038,40 @@ function renderTasks() {
     }
 }function updateTimers() {
     const now = new Date();
+    const todayStr = DAYS_OF_WEEK[now.getDay()];
+
+    // Update Individual Class Card Timers
+    classes.forEach(cls => {
+        const timerEl = document.getElementById(`card-timer-${cls.id}`);
+        if (!timerEl) return;
+
+        if (cls.day !== todayStr) {
+            timerEl.textContent = "";
+            return;
+        }
+
+        const start = new Date(now);
+        const [sh, sm] = cls.start_time.split(':').map(Number);
+        start.setHours(sh, sm, 0, 0);
+
+        const end = new Date(now);
+        const [eh, em] = cls.end_time.split(':').map(Number);
+        end.setHours(eh, em, 0, 0);
+
+        if (now < start) {
+            const diff = start - now;
+            timerEl.textContent = "Starts in " + formatDuration(diff);
+            timerEl.style.color = "var(--primary)";
+        } else if (now >= start && now <= end) {
+            const diff = end - now;
+            timerEl.textContent = "Ends in " + formatDuration(diff);
+            timerEl.style.color = "var(--accent)";
+        } else {
+            timerEl.textContent = "Finished";
+            timerEl.style.color = "var(--text3)";
+        }
+    });
+
     let nextClass = null, minClassDiff = Infinity;
     let currentClass = null, classStart = null, classEnd = null;
 
@@ -1280,14 +1465,20 @@ window.addCourseToPlanner = async function(idx) {
 
 window.removePlannerCourse = async function(id) {
     if (!confirm('Remove this course from your plan?')) return;
-    showLoader();
+    
+    const oldPlan = [...plannerSchedule];
+    // Optimistic Update
+    plannerSchedule = plannerSchedule.filter(s => s.id !== id);
+    renderPlanner();
+    
     const { error } = await db.from('planner_schedule').delete().eq('id', id);
-    if (!error) {
-        plannerSchedule = plannerSchedule.filter(s => s.id !== id);
+    if (error) {
+        plannerSchedule = oldPlan;
         renderPlanner();
+        showToast('Error removing course.');
+    } else {
         showToast('Course removed.');
     }
-    hideLoader();
 };
 
 /** ===== ADMIN & SYNC FUNCTIONS ===== **/
@@ -1298,50 +1489,45 @@ function setupAdminPanel() {
     const status = document.getElementById('admin-exam-status');
     const resultsDiv = document.getElementById('admin-results');
 
+    const handleSync = async (exams, type, rows = []) => {
+        if (!exams || exams.length === 0) {
+            if (status) status.textContent = 'No exams found. Check file format.';
+            if (resultsDiv) {
+                resultsDiv.classList.remove('hidden');
+                resultsDiv.innerHTML = `<div style="color:var(--pink); font-weight:700; margin-bottom:8px;">Debug: No matches in ${rows.length} rows.</div>` + 
+                    rows.slice(0, 15).map(r => `<div style="border-bottom:1px solid var(--border); padding:4px; font-family:monospace; font-size:0.7rem;">${JSON.stringify(r)}</div>`).join('');
+            }
+            return;
+        }
+        
+        if (status) status.textContent = `Found ${exams.length} exams. Syncing...`;
+        if (resultsDiv) resultsDiv.classList.add('hidden');
+        
+        await db.from('global_exams').delete().neq('id', 0);
+        for (let i = 0; i < exams.length; i += 500) {
+            const { error } = await db.from('global_exams').insert(exams.slice(i, i+500).map(e => ({...e, exam_type: type})));
+            if (error) throw error;
+        }
+        if (status) status.textContent = `✅ Successfully synced ${exams.length} exams!`;
+    };
+
+    // 1. EXCEL/CSV SYNC
     if (processBtn) {
         processBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const file = fileInput?.files[0];
-            if (!file) { showToast('Please select an Excel or CSV file.'); return; }
+            if (!file) { showToast('Please select a file.'); return; }
             showLoader();
-            if (status) status.textContent = 'Processing...';
-            if (resultsDiv) resultsDiv.classList.add('hidden');
-
             try {
                 const arrayBuffer = await file.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                // Use header: 1 to get a raw array of arrays (rows)
-                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+                const exams = parseExamExcelJSON(rows);
+                const examType = document.getElementById('admin-exam-type')?.value || '';
+                await handleSync(exams, examType, rows);
                 
-                const parsedExams = parseExamExcelJSON(rows);
-                
-                if (parsedExams.length === 0) {
-                    if (status) status.textContent = 'No exams found. Check file format.';
-                    if (resultsDiv) {
-                        resultsDiv.classList.remove('hidden');
-                        resultsDiv.innerHTML = `<div style="color:var(--pink); font-weight:700; margin-bottom:8px;">Debug: No matches in ${rows.length} rows.</div>` + 
-                            rows.slice(0, 10).map(r => `<div style="border-bottom:1px solid var(--border); padding:4px;">Row: ${JSON.stringify(r)}</div>`).join('');
-                    }
-                } else {
-                    const examType = document.getElementById('admin-exam-type')?.value || '';
-                    parsedExams.forEach(ex => ex.exam_type = examType);
-                    
-                    if (status) status.textContent = `Found ${parsedExams.length} exams. Syncing...`;
-                    await db.from('global_exams').delete().neq('id', 0);
-                    
-                    for (let i = 0; i < parsedExams.length; i += 500) {
-                        const { error } = await db.from('global_exams').insert(parsedExams.slice(i, i+500));
-                        if (error) throw error;
-                    }
-                    
-                    if (status) status.textContent = `✅ Synced ${parsedExams.length} exams!`;
-                    if (resultsDiv) {
-                        resultsDiv.classList.remove('hidden');
-                        resultsDiv.style.whiteSpace = 'normal';
-                        resultsDiv.innerHTML = parsedExams.slice(0,5).map(e => `<div>${e.exam_date} | ${e.course} (${e.sections})</div>`).join('');
-                    }
-                }
+                // Immediately check for matches for the current user
+                checkGlobalExams();
             } catch (err) {
                 console.error(err);
                 if (status) status.textContent = 'Error: ' + err.message;
@@ -1350,86 +1536,126 @@ function setupAdminPanel() {
         });
     }
 
+    // 2. PASTE MODE SYNC
+    const pasteBtn = document.getElementById('btn-admin-paste-process');
+    const pasteArea = document.getElementById('admin-exam-paste');
+    if (pasteBtn) {
+        pasteBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const text = pasteArea?.value?.trim();
+            if (!text) { showToast('Please paste some text.'); return; }
+            showLoader();
+            try {
+                const rows = text.split('\n').map(l => l.trim().split(/\s{2,}|\t/)).filter(r => r.length > 0);
+                const exams = parseExamExcelJSON(rows);
+                const examType = document.getElementById('admin-exam-type')?.value || '';
+                await handleSync(exams, examType, rows);
+                
+                if (exams.length > 0) {
+                    if (pasteArea) pasteArea.value = '';
+                    checkGlobalExams(); // Trigger user sync check
+                }
+            } catch (err) {
+                if (status) status.textContent = 'Error: ' + err.message;
+            }
+            hideLoader();
+        });
+    }
+
+    // 3. CATALOG SYNC
     const catalogBtn = document.getElementById('btn-admin-catalog-process');
     const catalogFile = document.getElementById('admin-catalog-file');
     const catalogStatus = document.getElementById('admin-catalog-status');
-
     if (catalogBtn) {
         catalogBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             const file = catalogFile?.files[0];
-            if (!file) { showToast('Please select an Excel or CSV file.'); return; }
+            if (!file) { showToast('Select catalog file.'); return; }
             showLoader();
-            catalogStatus.textContent = 'Processing...';
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                let parsedCourses = [];
+                let courses = [];
                 if (file.name.endsWith('.csv')) {
-                    const text = new TextDecoder().decode(arrayBuffer);
-                    parsedCourses = parsePlannerCSV(text);
+                    courses = parsePlannerCSV(new TextDecoder().decode(arrayBuffer));
                 } else {
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                    parsedCourses = parsePlannerJSON(json);
+                    const json = XLSX.utils.sheet_to_json(XLSX.read(arrayBuffer, { type: 'array' }).Sheets[0]);
+                    courses = parsePlannerJSON(json);
                 }
-                if (parsedCourses.length === 0) {
-                    catalogStatus.textContent = 'No courses found. Check file format.';
-                } else {
-                    await db.from('global_classes').delete().neq('id', 0);
-                    for (let i = 0; i < parsedCourses.length; i += 500) {
-                        const { error } = await db.from('global_classes').insert(parsedCourses.slice(i, i+500));
-                        if (error) throw error;
-                    }
-                    catalogStatus.textContent = `✅ Synced ${parsedCourses.length} courses!`;
-                    loadProjectCSV();
+                await db.from('global_classes').delete().neq('id', 0);
+                for (let i = 0; i < courses.length; i += 500) {
+                    await db.from('global_classes').insert(courses.slice(i, i+500));
                 }
+                if (catalogStatus) catalogStatus.textContent = `✅ Synced ${courses.length} courses!`;
+                loadProjectCSV();
             } catch(err) {
-                console.error(err);
-                catalogStatus.textContent = 'Error: ' + err.message;
+                if (catalogStatus) catalogStatus.textContent = 'Error: ' + err.message;
             }
             hideLoader();
         });
     }
 
+    // 4. PLANNER TEMPLATE SYNC
     const plannerBtn = document.getElementById('btn-admin-planner-process');
     const plannerFile = document.getElementById('admin-planner-file');
     const plannerStatus = document.getElementById('admin-planner-status');
-
     if (plannerBtn) {
-        plannerBtn.addEventListener('click', async () => {
+        plannerBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
             const file = plannerFile?.files[0];
-            if (!file) { showToast('Please select an Excel or CSV file.'); return; }
+            if (!file) return;
             showLoader();
-            plannerStatus.textContent = 'Processing...';
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                let parsedCourses = [];
+                let courses = [];
                 if (file.name.endsWith('.csv')) {
-                    const text = new TextDecoder().decode(arrayBuffer);
-                    parsedCourses = parsePlannerCSV(text);
+                    courses = parsePlannerCSV(new TextDecoder().decode(arrayBuffer));
                 } else {
-                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                    parsedCourses = parsePlannerJSON(json);
+                    courses = parsePlannerJSON(XLSX.utils.sheet_to_json(XLSX.read(arrayBuffer, { type: 'array' }).Sheets[0]));
                 }
-                if (parsedCourses.length === 0) {
-                    plannerStatus.textContent = 'No courses found. Check file format.';
-                } else {
-                    await db.from('global_planner_courses').delete().neq('id', 0);
-                    for (let i = 0; i < parsedCourses.length; i += 500) {
-                        const { error } = await db.from('global_planner_courses').insert(parsedCourses.slice(i, i+500));
-                        if (error) throw error;
-                    }
-                    plannerStatus.textContent = `✅ Synced ${parsedCourses.length} courses!`;
-                    plannerCourses = parsedCourses;
+                await db.from('global_planner_courses').delete().neq('id', 0);
+                for (let i = 0; i < courses.length; i += 500) {
+                    await db.from('global_planner_courses').insert(courses.slice(i, i+500));
                 }
+                if (plannerStatus) plannerStatus.textContent = `✅ Synced ${courses.length} courses!`;
             } catch(err) {
-                console.error(err);
-                plannerStatus.textContent = 'Error: ' + err.message;
+                if (plannerStatus) plannerStatus.textContent = 'Error: ' + err.message;
             }
             hideLoader();
         });
     }
+
+    // 5. CLEANUP ACTIONS
+    const clearTable = async (table, label) => {
+        if (!confirm(`Are you sure you want to PERMANENTLY delete all ${label}?`)) return;
+        showLoader();
+        try {
+            const { error } = await db.from(table).delete().neq('id', 0);
+            if (error) throw error;
+            showToast(`${label} cleared successfully.`);
+        } catch (err) {
+            showToast(`Error: ` + err.message);
+        }
+        hideLoader();
+    };
+
+    document.getElementById('btn-clear-exams')?.addEventListener('click', () => clearTable('global_exams', 'Exams'));
+    document.getElementById('btn-clear-classes')?.addEventListener('click', () => clearTable('global_classes', 'Course Catalog'));
+    document.getElementById('btn-clear-planner')?.addEventListener('click', () => clearTable('global_planner_courses', 'Planner Template'));
+    document.getElementById('btn-clear-all')?.addEventListener('click', async () => {
+        if (!confirm('💥 WARNING: This will delete ALL global data. Proceed?')) return;
+        showLoader();
+        try {
+            await Promise.all([
+                db.from('global_exams').delete().neq('id', 0),
+                db.from('global_classes').delete().neq('id', 0),
+                db.from('global_planner_courses').delete().neq('id', 0)
+            ]);
+            showToast('All global data cleared.');
+        } catch (err) {
+            showToast('Error: ' + err.message);
+        }
+        hideLoader();
+    });
 }
 
 function parseExamExcelJSON(rows) {
@@ -1439,98 +1665,107 @@ function parseExamExcelJSON(rows) {
     let currentVenue = '';
     
     const dateRegex = /([A-Za-z]+ \d{1,2},\s*\d{4}|\d{1,2}\/\d{1,2}\/\d{4})/i;
-    const timeRegex = /(\d{1,2}:\d{2}\s*(?:AM|PM))\s*[-–]\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i;
+    const timeRangeRegex = /(\d{1,2}:\d{2}\s*(?:AM|PM))\s*[-–]\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i;
+    const singleTimeRegex = /^(\d{1,2}:\d{2}\s*(?:AM|PM))$/i;
     const slotRegex = /Slot\s*(\d+)/i;
-    const venueKeywords = ['ANNEX', 'BUILDING', 'ROOM', 'DSK', 'CAMPUS', 'LAB', 'ARCH'];
+    const venueKeywords = ['ANNEX', 'BUILDING', 'ROOM', 'DSK', 'CAMPUS', 'LAB', 'ARCH', 'AUDITORIUM'];
     
-    // AIUB Exam Slot mapping
     const slotTimes = {
         '1': '9:00 AM - 11:00 AM',
         '2': '12:00 PM - 2:00 PM',
         '3': '3:00 PM - 5:00 PM'
     };
 
-    rows.forEach(row => {
-        if (!Array.isArray(row)) return;
-        const values = row.map(v => v ? String(v).trim() : '');
-        const rowText = values.join(' ');
-        
-        // 1. Detect Date
+    // Flatten rows
+    const cleanRows = rows.map(r => Array.isArray(r) ? r.map(v => v ? String(v).trim() : '') : [String(r).trim()])
+                          .filter(r => r.some(v => v));
+
+    for (let i = 0; i < cleanRows.length; i++) {
+        const row = cleanRows[i];
+        const rowText = row.join(' ');
+        const upperRow = rowText.toUpperCase();
+
+        // 1. Detect Date (Don't continue if it's a long row)
         const dateMatch = rowText.match(dateRegex);
         if (dateMatch) {
             try { currentDate = new Date(dateMatch[1]).toISOString().split('T')[0]; } catch(e) {}
         }
-        
-        // 2. Detect Time or Slot
+
+        // 2. Detect Slot or Time
         const slotMatch = rowText.match(slotRegex);
         if (slotMatch) {
             currentTime = slotTimes[slotMatch[1]] || `Slot ${slotMatch[1]}`;
         } else {
-            const timeMatch = rowText.match(timeRegex);
-            if (timeMatch) {
-                currentTime = timeMatch[1] + ' - ' + timeMatch[2];
-            } else {
-                const times = rowText.match(/(\d{1,2}:\d{2}\s*(?:AM|PM))/ig);
-                if (times && times.length >= 2) {
-                    currentTime = times[0] + ' - ' + times[1];
-                } else if (times && times.length === 1 && !currentTime) {
-                    // If we only find one time and don't have a current one, use it as a start
-                    currentTime = times[0];
-                }
-            }
-        }
-        
-        // 3. Detect Venue Header
-        const nonDateValues = values.filter(v => v && !dateRegex.test(v) && !timeRegex.test(v) && !slotRegex.test(v));
-        if (nonDateValues.length === 1) {
-            const val = nonDateValues[0].toUpperCase();
-            if (venueKeywords.some(k => val.includes(k))) {
-                currentVenue = val;
-                return;
+            const timeRangeMatch = rowText.match(timeRangeRegex);
+            if (timeRangeMatch) {
+                currentTime = timeRangeMatch[1] + ' - ' + timeRangeMatch[2];
+            } else if (singleTimeRegex.test(rowText)) {
+                currentTime = rowText;
             }
         }
 
-        // 4. Extract Course Info
+        // 3. Detect Venue Header
+        if (row.length === 1 && (venueKeywords.some(k => upperRow.includes(k)) || upperRow === 'ALL')) {
+            currentVenue = upperRow;
+            continue;
+        }
+
+        // 4. Skip Headers
+        if (upperRow.includes('COURSE TITLE') || upperRow.includes('TIME/SLOT')) continue;
+
+        // 5. Process Course Row
         if (currentDate && currentTime) {
-            const courseVals = values.filter(v => {
-                const upper = v.toUpperCase();
-                return v &&
-                       !timeRegex.test(v) && 
-                       !dateRegex.test(v) && 
-                       !slotRegex.test(v) &&
-                       v !== '-' && 
-                       !upper.includes('AM') && 
-                       !upper.includes('PM') && 
-                       upper !== 'TIME' &&
-                       upper !== 'COURSE TITLE' &&
-                       upper !== 'SECTIONS' &&
-                       upper !== 'VENUE';
-            });
-            
-            if (courseVals.length >= 2) {
-                const courseName = courseVals[0];
-                const sections = courseVals[1];
-                const rowVenue = courseVals.length > 2 ? courseVals[2] : currentVenue;
-                
-                const lowerName = courseName.toLowerCase();
-                if (courseName.length > 4 && 
-                    !lowerName.includes('day') && 
-                    !lowerName.includes('slot') && 
-                    !lowerName.includes('date:') && 
-                    !lowerName.includes('published on') &&
-                    !lowerName.includes('except llb')) {
+            let courseName = '';
+            let sections = '';
+            let rowVenue = currentVenue;
+
+            // EXCEL TABULAR FORMAT DETECTION
+            if (row.length >= 5) {
+                // [Date, Time, Course, Sections, Venue]
+                courseName = row[2];
+                sections = row[3];
+                rowVenue = row[4] || currentVenue;
+            } else {
+                // PDF / MESSY TEXT DETECTION
+                const sectionSplitMatch = rowText.match(/^(.*?)\s+([A-Z\d,]{1,}(?:,.*)?|All)$/i);
+                if (sectionSplitMatch) {
+                    courseName = sectionSplitMatch[1].trim();
+                    sections = sectionSplitMatch[2].trim();
+                } else {
+                    courseName = rowText.trim();
+                }
+
+                // Peer ahead for merged sections
+                while (i + 1 < cleanRows.length) {
+                    const nextRowArr = cleanRows[i + 1];
+                    const nextRowStr = nextRowArr.join(' ');
+                    const isContinuation = nextRowStr.startsWith(',') || 
+                                           (nextRowArr.length === 1 && !nextRowStr.includes(' ') && nextRowStr.includes(',')) ||
+                                           (nextRowStr.length < 50 && /^[A-Z\d, ]+$/.test(nextRowStr) && !venueKeywords.some(k => nextRowStr.toUpperCase().includes(k)));
                     
-                    results.push({
-                        exam_date: currentDate,
-                        time: currentTime,
-                        course: courseName,
-                        sections: sections,
-                        venue: rowVenue
-                    });
+                    if (isContinuation) {
+                        sections += (sections.endsWith(',') ? '' : ',') + nextRowStr;
+                        i++;
+                    } else {
+                        break;
+                    }
                 }
             }
+
+            // Cleanup Course Name (remove Date/Time if they got stuck to it)
+            courseName = courseName.replace(dateRegex, '').replace(timeRangeRegex, '').replace(slotRegex, '').trim();
+
+            if (courseName.length > 3 && !courseName.toUpperCase().includes('COURSE TITLE')) {
+                results.push({
+                    exam_date: currentDate,
+                    time: currentTime,
+                    course: courseName,
+                    sections: sections || 'All',
+                    venue: rowVenue || 'TBA'
+                });
+            }
         }
-    });
+    }
     
     return results;
 }
@@ -1610,23 +1845,31 @@ async function checkGlobalExams() {
         const { data: globalExams } = await db.from('global_exams').select('*');
         if (!globalExams || globalExams.length === 0) return;
 
-        const { data: existingExams } = await db.from('exams').select('title').eq('user_id', userKey);
-        const existingTitles = new Set((existingExams || []).map(e => e.title));
+        const { data: existingExams } = await db.from('exams').select('course').eq('user_id', userKey);
+        const existingTitles = new Set((existingExams || []).map(e => e.course));
+
+        console.log(`Checking sync: ${myClasses.length} local classes, ${globalExams.length} global exams.`);
+
+        const cleanStr = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
         const toSync = [];
         myClasses.forEach(cls => {
+            const cleanCls = cleanStr(cls.course);
+            
             globalExams.forEach(ge => {
                 if (!ge.course) return;
-                const titleMatch = ge.course.toLowerCase().includes(cls.course.toLowerCase()) || cls.course.toLowerCase().includes(ge.course.toLowerCase());
-                const sectionsRaw = (ge.sections || '');
-                const sectionMatch = !sectionsRaw || sectionsRaw.includes(cls.section);
-                if (titleMatch && sectionMatch) {
+                const cleanGe = cleanStr(ge.course);
+                
+                // Match if names are similar
+                const titleMatch = cleanGe.includes(cleanCls) || cleanCls.includes(cleanGe);
+                
+                if (titleMatch) {
                     const title = `${ge.course}${ge.exam_type ? ' (' + ge.exam_type + ')' : ''}`;
                     if (!existingTitles.has(title)) {
                         existingTitles.add(title);
                         toSync.push({
                             user_id: userKey,
-                            title,
+                            course: title,
                             date: ge.exam_date || '',
                             time: convertTimeForPlanner(ge.time) || ge.time || '09:00:00',
                             notes: ge.venue ? 'Venue: ' + ge.venue : ''

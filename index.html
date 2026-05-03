@@ -227,7 +227,10 @@
     <section id="tab-schedule" class="tab-section" role="tabpanel">
       <div class="section-header">
         <h2 class="section-title">Weekly Schedule</h2>
-        <button class="btn-pill" id="btn-add-class-shortcut">+ Add Class</button>
+        <div>
+          <button class="btn-danger btn-mini" id="btn-clear-all-classes-shortcut" style="margin-right:8px;">🗑️ Clear All</button>
+          <button class="btn-pill" id="btn-add-class-shortcut">+ Add Class</button>
+        </div>
       </div>
       <div id="routine-container" class="routine-grid">
         <p class="empty-state full-empty">No classes added yet.<br/>Tap <strong>+</strong> to get started.</p>
@@ -238,18 +241,27 @@
     <section id="tab-exams" class="tab-section" role="tabpanel">
       <div class="section-header">
         <h2 class="section-title">Tasks & Exams</h2>
-        <div>
-          <button class="btn-pill" id="btn-add-task-shortcut" style="margin-right: 6px;">+ Add Task</button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button class="btn-secondary" id="btn-sync-global-exams" title="Sync with Global DB" style="padding: 7px 12px; font-size: 0.75rem; border-radius: 20px; display: flex; align-items: center; gap: 6px;">
+            <span class="sync-icon">🔄</span> Sync the Exams
+          </button>
+          <button class="btn-pill" id="btn-add-task-shortcut">+ Add Task</button>
           <button class="btn-pill" id="btn-add-exam-shortcut">+ Add Exam</button>
         </div>
       </div>
       
-      <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text2);">Tasks</h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+        <h3 style="font-size: 0.9rem; color: var(--text2); margin:0;">Tasks</h3>
+        <button class="btn-mini btn-danger" id="btn-clear-all-tasks-shortcut" style="font-size:0.7rem; padding:4px 8px;">🗑️ Clear Tasks</button>
+      </div>
       <div id="task-list-container" class="exam-list" style="margin-bottom: 24px;">
         <p class="empty-state full-empty" style="padding: 24px 16px;">No tasks yet.<br/>Tap <strong>+ Add Task</strong>.</p>
       </div>
 
-      <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: var(--text2);">Exams</h3>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px;">
+        <h3 style="font-size: 0.9rem; color: var(--text2); margin:0;">Exams</h3>
+        <button class="btn-mini btn-danger" id="btn-clear-all-exams-shortcut" style="font-size:0.7rem; padding:4px 8px;">🗑️ Clear Exams</button>
+      </div>
       <div id="exam-list-container" class="exam-list">
         <p class="empty-state full-empty" style="padding: 24px 16px;">No exams scheduled yet.<br/>Tap <strong>+ Add Exam</strong>.</p>
       </div>
@@ -259,6 +271,9 @@
     <section id="tab-planner" class="tab-section" role="tabpanel">
       <div class="section-header">
         <h2 class="section-title">Next Semester Planner</h2>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-danger btn-mini" id="btn-clear-planner-shortcut">🗑️ Clear Plan</button>
+        </div>
       </div>
       <div class="search-box">
         <svg viewBox="0 0 20 20" fill="none" width="16" height="16" class="search-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -696,8 +711,14 @@
           <input type="file" id="admin-exam-upload" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
           <p id="admin-exam-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
         </div>
-        <div style="margin-top: 20px;">
-          <button id="btn-admin-process" class="btn-primary" style="width: 100%;">🚀 Parse & Sync Global Database</button>
+        <div style="margin-top: 15px;">
+          <button id="btn-admin-process" class="btn-primary" style="width: 100%;">🚀 Sync from Excel/CSV File</button>
+        </div>
+
+        <div style="margin-top: 20px; border: 1px dashed var(--border); padding: 12px; border-radius: var(--r);">
+          <label class="setting-label" style="display:block; margin-bottom:8px;">OR Paste Raw Exam Text</label>
+          <textarea id="admin-exam-paste" placeholder="Copy from PDF and paste here..." style="width:100%; height:120px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:8px; font-size:0.8rem; outline:none; resize:vertical;"></textarea>
+          <button id="btn-admin-paste-process" class="btn-primary" style="width: 100%; margin-top:10px; background:var(--primary-l);">🚀 Sync Pasted Exams</button>
         </div>
         <div id="admin-results" class="hidden" style="margin-top: 15px; max-height: 200px; overflow-y: auto; background: var(--surface2); padding: 10px; border-radius: 8px; font-size: 0.8rem;">
         </div>
@@ -721,7 +742,19 @@
           <p id="admin-planner-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
         </div>
         <div style="margin-top: 10px;">
-          <button id="btn-admin-planner-process" class="btn-primary" style="width: 100%; background: var(--amber);">📊 Parse & Sync Planner Data</button>
+          <button id="btn-admin-planner-process" class="btn-primary" style="width: 100%; background: var(--pink);">🚀 Sync Planner Template</button>
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 25px 0;">
+        
+        <div class="setting-group" style="background: rgba(239, 68, 68, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2);">
+          <label class="setting-label" style="color: #ef4444; margin-bottom: 12px; display: block;">⚠️ Maintenance & Cleanup</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button id="btn-clear-exams" class="btn-primary" style="background: var(--surface3); color: var(--text); border: 1px solid var(--border); font-size: 0.75rem; padding: 10px 5px;">Clear Exams</button>
+            <button id="btn-clear-classes" class="btn-primary" style="background: var(--surface3); color: var(--text); border: 1px solid var(--border); font-size: 0.75rem; padding: 10px 5px;">Clear Catalog</button>
+            <button id="btn-clear-planner" class="btn-primary" style="background: var(--surface3); color: var(--text); border: 1px solid var(--border); font-size: 0.75rem; padding: 10px 5px;">Clear Planner</button>
+            <button id="btn-clear-all" class="btn-primary" style="background: #ef4444; color: #fff; font-size: 0.75rem; padding: 10px 5px;">Wipe All Data</button>
+          </div>
         </div>
       </div>
     </div>

@@ -167,9 +167,10 @@ input,select,textarea{font-family:inherit}
 }
 .btn-danger:hover{background:rgba(244,114,182,0.2)}
 .btn-mini{
-  padding:5px 12px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:6px;
-  color:var(--text2);font-size:.75rem;font-weight:500;transition:var(--trans);
+  padding:4px 10px;background:var(--surface2);
+  border:1px solid var(--border);border-radius:20px;
+  color:var(--text2);font-size:.7rem;font-weight:600;transition:var(--trans);
+  white-space:nowrap;width:auto;
 }
 .btn-mini:hover{border-color:var(--primary);color:var(--primary-l)}
 .btn-pill{
@@ -320,14 +321,16 @@ input,select,textarea{font-family:inherit}
   padding:16px;
   min-height:calc(100vh - var(--top-h) - var(--nav-h));
 }
-.tab-section{display:none}
-.tab-section.active{display:block;animation:fadeUp .25s ease}
+.tab-section{display:none!important}
+.tab-section.active{display:block!important;animation:fadeUp .25s ease}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
 /* ═══════════════════════════════ SECTION HEADERS ═══════════════════════════ */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.section-title{font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-0.2px}
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;gap:12px;
+}.section-title{font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-0.2px}
 .section-badge{font-size:.75rem;color:var(--accent);font-weight:600}
 
 /* ═══════════════════════════════ HERO CARD ═════════════════════════════════ */
@@ -770,8 +773,13 @@ input,select,textarea{font-family:inherit}
   }
   .home-main{grid-column:1}
   .home-side{grid-column:2;position:sticky;top:calc(var(--top-h) + 28px)}
-  .home-side .section-header{margin-top:0}
-
+  .home-side .section-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:16px;gap:12px;
+  }
+  .home-side .section-header > div {
+    display:flex; gap:8px;
+  }
   .routine-grid{display:grid;grid-template-columns:repeat(2,1fr)}
   .modal-overlay{align-items:center;padding:20px}
 }
