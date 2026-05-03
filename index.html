@@ -172,6 +172,9 @@
       </div>
     </div>
     <div class="topbar-right">
+      <button id="btn-toggle-notifs" class="icon-btn" title="Toggle Notifications" aria-label="Toggle Notifications">
+        <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <button id="btn-help" class="icon-btn" title="Help" aria-label="Help">
         <svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.5"/><path d="M10 14v-1M10 6a2 2 0 0 1 0 4c-.8.3-1 1-1 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       </button>
@@ -189,6 +192,19 @@
 
     <!-- HOME TAB -->
     <section id="tab-home" class="tab-section active" role="tabpanel">
+      <div id="download-banner" class="download-banner hidden">
+        <div class="banner-content">
+          <div class="banner-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M17.5 13c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5 1.5-.7 1.5-1.5-.7-1.5-1.5-1.5zM6.5 13c-.8 0-1.5.7-1.5 1.5S5.7 16 6.5 16s1.5-.7 1.5-1.5S7.3 13 6.5 13zM18.6 8.3l1.8-3.1c.1-.2 0-.5-.2-.6-.2-.1-.5 0-.6.2l-1.8 3.1C16.3 7.3 14.2 7 12 7s-4.3.3-5.8.9L4.4 4.8c-.1-.2-.4-.3-.6-.2-.2.1-.3.4-.2.6l1.8 3.1C2.3 10.5 0 13.5 0 17h24c0-3.5-2.3-6.5-5.4-8.7z"/></svg>
+          </div>
+          <div class="banner-text">
+            <h4>Get Classify for Android</h4>
+            <p>Download our official app for a better experience!</p>
+          </div>
+          <a href="https://github.com/mubin25-dodu/Classify/releases/download/latest/app-debug.apk" class="btn-banner-download">Download APK</a>
+          <button id="btn-close-banner" class="banner-close" aria-label="Close banner">✕</button>
+        </div>
+      </div>
       <div class="home-main">
         <div id="hero-card" class="hero-card"></div>
         <div class="stats-row">
@@ -239,14 +255,14 @@
 
     <!-- TASKS & EXAMS TAB -->
     <section id="tab-exams" class="tab-section" role="tabpanel">
-      <div class="section-header">
+      <div class="section-header task-header">
         <h2 class="section-title">Tasks & Exams</h2>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn-secondary" id="btn-sync-global-exams" title="Sync with Global DB" style="padding: 7px 12px; font-size: 0.75rem; border-radius: 20px; display: flex; align-items: center; gap: 6px;">
-            <span class="sync-icon">🔄</span> Sync the Exams
+        <div class="action-btns">
+          <button class="btn-pill btn-sync" id="btn-sync-global-exams" title="Sync with Global DB">
+            <span class="sync-icon">🔄</span> Sync
           </button>
-          <button class="btn-pill" id="btn-add-task-shortcut">+ Add Task</button>
-          <button class="btn-pill" id="btn-add-exam-shortcut">+ Add Exam</button>
+          <button class="btn-pill" id="btn-add-task-shortcut">+ Task</button>
+          <button class="btn-pill" id="btn-add-exam-shortcut">+ Exam</button>
         </div>
       </div>
       
@@ -352,6 +368,16 @@
               <input type="text" id="f-room" placeholder="e.g. 301"/>
             </div>
           </div>
+          <div class="toggle-group">
+            <div class="toggle-label">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <span>Remind Me</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="f-notif" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
           <button type="submit" class="btn-primary btn-full">Add Class</button>
         </form>
       </div>
@@ -376,6 +402,16 @@
               <label for="t-time">Time</label>
               <input type="time" id="t-time" required/>
             </div>
+          </div>
+          <div class="toggle-group">
+            <div class="toggle-label">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <span>Remind Me</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="t-notif" checked>
+              <span class="slider"></span>
+            </label>
           </div>
           <button type="submit" class="btn-primary btn-full">Add Task</button>
         </form>
@@ -405,6 +441,16 @@
           <div class="form-group">
             <label for="e-notes">Notes (optional)</label>
             <input type="text" id="e-notes" placeholder="Any special notes…"/>
+          </div>
+          <div class="toggle-group">
+            <div class="toggle-label">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <span>Remind Me</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="e-notif" checked>
+              <span class="slider"></span>
+            </label>
           </div>
           <button type="submit" class="btn-primary btn-full">Add Exam</button>
         </form>
@@ -476,24 +522,7 @@
         <div class="sheet-opt-sub">Add a one-time exam with countdown</div>
       </div>
     </button>
-    <button id="fab-search-add" class="sheet-option">
-      <span class="sheet-opt-icon">
-        <svg viewBox="0 0 20 20" fill="none" width="22" height="22"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-      </span>
-      <div>
-        <div class="sheet-opt-title">Search &amp; Add Course</div>
-        <div class="sheet-opt-sub">Find from the AIU course database</div>
-      </div>
-    </button>
-    <button id="fab-upload-personal" class="sheet-option">
-      <span class="sheet-opt-icon">
-        <svg viewBox="0 0 20 20" fill="none" width="22" height="22"><path d="M4 16v1a3 3 0 003 3h6a3 3 0 003-3v-1m-4-4l-3-3m0 0l-3 3m3-3v9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </span>
-      <div>
-        <div class="sheet-opt-title">Upload Excel Routine</div>
-        <div class="sheet-opt-sub">Import from your registration slip</div>
-      </div>
-    </button>
+
     <input type="file" id="user-routine-upload" accept=".xlsx, .xls, .csv" style="display: none;">
   </div>
 
@@ -550,6 +579,7 @@
             </label>
           </div>
           <p style="font-size: 0.8rem; color: var(--text3); margin-top: 4px;">Get alerts for upcoming classes and exams.</p>
+          <button id="btn-test-notif" class="btn-mini" style="margin-top: 8px; width: 100%; height: 36px; border: 1px dashed var(--border); background: transparent; color: var(--text2);">🔔 Send Test Notification (10s)</button>
         </div>
         <div class="setting-group">
           <label class="setting-label">Import Schedule</label>
@@ -774,6 +804,143 @@
     </div>
   </div>
 
+  <!-- EDIT CLASS MODAL -->
+  <div id="modal-edit-class" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Edit Class</h2>
+        <button class="modal-close" data-modal="modal-edit-class">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-class-form">
+          <input type="hidden" id="edit-class-id">
+          <div class="form-group">
+            <label for="ec-course">Course Name</label>
+            <input type="text" id="ec-course" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ec-start">Start Time</label>
+              <input type="time" id="ec-start" required>
+            </div>
+            <div class="form-group">
+              <label for="ec-end">End Time</label>
+              <input type="time" id="ec-end" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ec-type">Type</label>
+              <select id="ec-type">
+                <option value="Theory">Theory</option>
+                <option value="Lab">Lab</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ec-room">Room</label>
+              <input type="text" id="ec-room">
+            </div>
+          </div>
+          <div class="toggle-group">
+            <div class="toggle-label">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <span>Remind Me</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="ec-notif" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <button type="submit" class="btn-primary btn-full">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT EXAM MODAL -->
+  <div id="modal-edit-exam" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Edit Exam</h2>
+        <button class="modal-close" data-modal="modal-edit-exam">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-exam-form">
+          <input type="hidden" id="edit-exam-id">
+          <div class="form-group">
+            <label for="ee-course">Course Name</label>
+            <input type="text" id="ee-course" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="ee-date">Date</label>
+              <input type="date" id="ee-date" required>
+            </div>
+            <div class="form-group">
+              <label for="ee-time">Time</label>
+              <input type="time" id="ee-time" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ee-notes">Notes</label>
+            <input type="text" id="ee-notes">
+          </div>
+          <div class="toggle-group">
+            <div class="toggle-label">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <span>Remind Me</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="ex-notif" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <button type="submit" class="btn-primary btn-full">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT TASK MODAL -->
+  <div id="modal-edit-task" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Edit Task</h2>
+        <button class="modal-close" data-modal="modal-edit-task">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-task-form">
+          <input type="hidden" id="edit-task-id">
+          <div class="form-group">
+            <label for="et-title">Task Title</label>
+            <input type="text" id="et-title" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="et-date">Date</label>
+              <input type="date" id="et-date" required>
+            </div>
+            <div class="form-group">
+              <label for="et-time">Time</label>
+              <input type="time" id="et-time" required>
+            </div>
+          </div>
+          <div class="toggle-group">
+            <div class="toggle-label">
+              <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6z" stroke="currentColor" stroke-width="1.5"/></svg>
+              <span>Remind Me</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="et-notif" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <button type="submit" class="btn-primary btn-full">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Sync Prompt Modal -->
   <div id="modal-sync-prompt" class="modal-overlay hidden">
     <div class="modal-card" style="max-width: 400px;">
@@ -793,8 +960,12 @@
     </div>
   </div>
 
-  <div id="toast-container"></div>
-  <div id="loader" class="loader-overlay hidden">
+  <div id="toast" class="toast hidden"></div>
+  <div id="undo-snackbar" class="snackbar hidden">
+    <span id="snackbar-text"></span>
+    <button id="btn-undo" class="btn-undo">Undo</button>
+  </div>
+  <div id="global-loader" class="loader-overlay hidden">
     <div class="spinner"></div>
   </div>
 

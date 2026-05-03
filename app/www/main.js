@@ -230,6 +230,19 @@ async function initApp() {
     hideLoader();
     
     updateAllViews();
+
+    // Banner logic
+    const banner = document.getElementById('download-banner');
+    const isNative = window.Capacitor && window.Capacitor.getPlatform() !== 'web';
+    if (banner && localStorage.getItem('bannerDismissed') !== 'true' && !isNative) {
+        banner.classList.remove('hidden');
+    }
+
+    document.getElementById('btn-close-banner')?.addEventListener('click', () => {
+        banner.classList.add('hidden');
+        localStorage.setItem('bannerDismissed', 'true');
+    });
+
     syncNativeNotifications();
     setInterval(updateTimers, 1000);
     setInterval(checkReminders, 30000);
@@ -932,8 +945,10 @@ window.editTask = function(id) {
 };
 
 window.deleteTask = async function(id) {
-    const idx = tasks.findIndex(x => x.id === id);
-    if(idx === -1) return;
+    console.log('deleteTask called with id:', id);
+    if(!id) return;
+    const idx = tasks.findIndex(x => x.id == id);
+    if(idx === -1) { console.error('Task not found for deletion:', id); return; }
     if(!confirm("Delete this task?")) return;
 
     const deleted = tasks[idx];
@@ -941,14 +956,24 @@ window.deleteTask = async function(id) {
     tasks.splice(idx, 1);
     updateAllViews();
 
-    const { error } = await db.from('tasks').delete().eq('id', id);
-    if (!error) {
-        showUndo('Task deleted', 'task', deleted, idx);
-    } else {
-        // Rollback
+    if (!db) { showToast('Database connection missing'); return; }
+
+    try {
+        const { error } = await db.from('tasks').delete().eq('id', id);
+        if (!error) {
+            showUndo('Task deleted', 'task', deleted, idx);
+            await syncNativeNotifications();
+        } else {
+            console.error('Supabase delete error:', error);
+            // Rollback
+            tasks.splice(idx, 0, deleted);
+            updateAllViews();
+            showToast('Error deleting task: ' + error.message);
+        }
+    } catch (e) {
+        console.error('Delete task exception:', e);
         tasks.splice(idx, 0, deleted);
         updateAllViews();
-        showToast('Error deleting task.');
     }
 };
 
@@ -1064,7 +1089,7 @@ function renderTasks() {
                     </div>
                 </div>
                 <div class="exam-card-meta">
-                    ≡ƒôà ${new Date(task.date).toLocaleDateString()} at ${convertTo12Hour(task.time)}
+                    📅 ${new Date(task.date).toLocaleDateString()} at ${convertTo12Hour(task.time)}
                 </div>
                 <div class="exam-card-countdown" data-task-id="${task.id}">
                     ${isExpired ? 'Passed' : 'Calculating...'}
