@@ -45,6 +45,16 @@
       "operatingSystem": "Any"
     }
   </script>
+  
+  <!-- PDF.js for Admin Panel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+
+  <!-- SheetJS for Admin Excel Parsing -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -115,6 +125,10 @@
         <span class="sidebar-icon"><svg viewBox="0 0 20 20" fill="none" width="18" height="18"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span>
         Search
       </button>
+      <button class="sidebar-item" id="sb-planner" data-tab="planner">
+        <span class="sidebar-icon"><svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5" rx="2"/><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.5"/></svg></span>
+        Routine Planner
+      </button>
     </div>
     <button class="sidebar-add-btn" id="sb-add-btn">
       <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg>
@@ -129,6 +143,10 @@
         <button class="sidebar-footer-btn" id="sb-settings">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           Settings
+        </button>
+        <button class="sidebar-footer-btn hidden" id="sb-admin" style="color: var(--accent);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Admin Panel
         </button>
       </div>
       <div class="sidebar-theme-row">
@@ -159,6 +177,9 @@
       </button>
       <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="18" height="18"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+      <button id="btn-admin-top" class="icon-btn hidden" title="Admin Panel" style="color: var(--accent);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
       </button>
     </div>
   </header>
@@ -244,7 +265,7 @@
         <input id="course-search-input" type="text" placeholder="Search by title, code or section…" autocomplete="off"/>
         <button id="btn-clear-search" class="search-clear hidden" aria-label="Clear">✕</button>
       </div>
-      <div id="search-results" class="search-results"></div>
+      <div id="search-results" class="search-results-container"></div>
 
       <div class="divider-or"><span>or add manually</span></div>
 
@@ -289,7 +310,11 @@
                 <option value="Lab">Lab</option>
               </select>
             </div>
-            <div class="form-group">
+            <div class="form-group" style="flex: 1;">
+              <label for="f-section">Section</label>
+              <input type="text" id="f-section" placeholder="e.g. A"/>
+            </div>
+            <div class="form-group" style="flex: 2;">
               <label for="f-room">Room</label>
               <input type="text" id="f-room" placeholder="e.g. 301"/>
             </div>
@@ -353,6 +378,29 @@
       </div>
     </section>
 
+    <!-- PLANNER TAB -->
+    <section id="tab-planner" class="tab-section" role="tabpanel">
+      <div class="section-header">
+        <h2 class="section-title">Routine Planner (Next Semester)</h2>
+      </div>
+      
+      <!-- Planner Search -->
+      <div class="search-box">
+        <svg viewBox="0 0 20 20" fill="none" width="16" height="16" class="search-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input type="text" id="planner-search-input" class="search-input" placeholder="Search next semester courses..." autocomplete="off"/>
+        <button id="btn-clear-planner-search" class="icon-btn hidden" aria-label="Clear search">
+          <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div id="planner-search-results" class="search-results-container"></div>
+      
+      <!-- Planner Grid -->
+      <h3 style="font-size: 0.9rem; margin: 20px 0 8px 0; color: var(--text2);">Your Planned Schedule</h3>
+      <div id="planner-container" class="routine-grid">
+        <p class="empty-state full-empty">No planned courses yet.<br/>Search above to add to your plan.</p>
+      </div>
+    </section>
+
   </main>
 
   <!-- BOTTOM NAV -->
@@ -375,6 +423,10 @@
     <button class="nav-item" id="nav-search" data-tab="search" aria-label="Search">
       <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <span class="nav-label">Search</span>
+    </button>
+    <button class="nav-item" id="nav-planner" data-tab="planner" aria-label="Planner">
+      <svg viewBox="0 0 20 20" fill="none" width="22" height="22" class="nav-icon-svg"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5" rx="2"/><path d="M4 10h12M10 4v12" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span class="nav-label">Planner</span>
     </button>
   </nav>
 
@@ -511,7 +563,10 @@
       <div class="modal-body">
         <form id="edit-class-form" novalidate>
           <input type="hidden" id="edit-class-id"/>
-          <div class="form-group"><label for="ec-course">Course Name</label><input type="text" id="ec-course" required/></div>
+          <div class="form-row">
+            <div class="form-group"><label for="ec-course">Course Name</label><input type="text" id="ec-course" required/></div>
+            <div class="form-group"><label for="ec-section">Section</label><input type="text" id="ec-section" placeholder="e.g. A"/></div>
+          </div>
           <div class="form-row">
             <div class="form-group"><label for="ec-start">Start Time</label><input type="time" id="ec-start" required/></div>
             <div class="form-group"><label for="ec-end">End Time</label><input type="time" id="ec-end" required/></div>
@@ -589,14 +644,21 @@
 
 </div><!-- end #app -->
 
+<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- PDF.js for Admin PDF Parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  var pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+</script>
 <script src="main.js"></script>
 <script>
 // Sidebar nav sync — mirrors bottom nav behaviour
 document.addEventListener('DOMContentLoaded', () => {
   const sbMap = {
     'sb-home': 'nav-home', 'sb-schedule': 'nav-schedule',
-    'sb-exams': 'nav-exams', 'sb-search': 'nav-search'
+    'sb-exams': 'nav-exams', 'sb-search': 'nav-search', 'sb-planner': 'nav-planner'
   };
   const sbItems = document.querySelectorAll('.sidebar-item[data-tab]');
   const updateSidebar = (activeTab) => {
@@ -647,6 +709,69 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 1000);
 });
 </script>
+  <!-- Admin Modal -->
+  <div id="modal-admin" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Admin Panel - Global Exam Sync</h2>
+        <button class="modal-close" data-modal="modal-admin">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-group">
+          <label class="setting-label">Step 1: Select Exam Type</label>
+          <select id="admin-exam-type" class="key-input">
+            <option value="Final">Final Exam Time (No Label)</option>
+            <option value="Tentative">Tentative Exam Time</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">Step 2: Upload Schedule PDF</label>
+          <input type="file" id="admin-pdf-upload" accept="application/pdf" style="margin-top: 8px;" />
+          <p id="admin-pdf-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+        </div>
+        <div style="margin-top: 20px;">
+          <button id="btn-admin-process" class="btn-primary" style="width: 100%;">🚀 Parse & Sync Global Database</button>
+        </div>
+        <div id="admin-results" class="hidden" style="margin-top: 15px; max-height: 200px; overflow-y: auto; background: var(--surface2); padding: 10px; border-radius: 8px; font-size: 0.8rem;">
+        </div>
+
+        <hr style="border:0; border-top: 1px solid var(--border); margin: 20px 0;">
+        
+        <div class="setting-group">
+          <label class="setting-label">Step 3: Upload Planner Data (Excel/CSV)</label>
+          <input type="file" id="admin-planner-file" accept=".xlsx, .xls, .csv" style="margin-top: 8px;" />
+          <p id="admin-planner-status" style="font-size: 0.85rem; color: var(--text2); margin-top: 8px;"></p>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="btn-admin-planner-process" class="btn-primary" style="width: 100%; background: var(--amber);">📊 Parse & Sync Planner Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sync Prompt Modal -->
+  <div id="modal-sync-prompt" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>✨ Sync New Exams?</h2>
+        <button class="modal-close" data-modal="modal-sync-prompt">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="sync-prompt-text" style="margin-bottom: 20px;">We found new exams matching your courses. Would you like to add them to your schedule?</p>
+        <div style="display: flex; gap: 10px;">
+          <button id="btn-sync-now" class="btn-primary" style="flex: 1;">Sync Now</button>
+          <button class="btn-secondary modal-close" data-modal="modal-sync-prompt" style="flex: 1;">Dismiss</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <div id="loader" class="loader-overlay hidden">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="main.js"></script>
 </body>
 </html>
 

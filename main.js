@@ -6,6 +6,8 @@ let classes = [];
 let exams = [];
 let tasks = [];
 let csvCourses = [];
+let plannerCourses = [];
+let plannerSchedule = [];
 let reminderLeadTime = 15;
 let lastDeleted = null;
 let undoTimeout = null;
@@ -31,344 +33,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupNavigation();
     setupModals();
     setupForms();
-    loadProjectCSV();
-
-    if (window.supabase) {
-        db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        setupAuthOverlay();
-
-        // Check active session
-        const { data: { session }, error } = await db.auth.getSession();
-        if (session) {
-            handleLoginSuccess(session.user);
-        }
-
-        // Listen for auth changes
-        db.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                handleLoginSuccess(session.user);
-            } else if (event === 'SIGNED_OUT') {
-                userKey = null;
-                document.getElementById('auth-overlay').classList.remove('hidden');
-                document.getElementById('app').classList.add('hidden');
-            }
-        });
-    } else {
-        showToast("Error: Supabase client not loaded");
-    }
-});
-
-function handleLoginSuccess(user) {
-    userKey = user.id;
-    document.getElementById('auth-overlay').classList.add('hidden');
-    initApp();
-}
-
-function setupAuthOverlay() {
-    document.getElementById('tab-login').addEventListener('click', () => switchKeyTab('login'));
-    document.getElementById('tab-register').addEventListener('click', () => switchKeyTab('register'));
-    
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value;
-        const password = document.getElementById('login-password').value;
-        const errEl = document.getElementById('auth-error');
-        const btn = document.getElementById('btn-login');
-        
-        btn.textContent = 'Logging in...';
-        btn.disabled = true;
-        
-        const { data, error } = await db.auth.signInWithPassword({ email, password });
-        
-        btn.textContent = '🔑 Login';
-        btn.disabled = false;
-        
-        if (error) {
-            errEl.textContent = error.message;
-            errEl.classList.remove('hidden');
-        } else {
-            errEl.classList.add('hidden');
-            document.getElementById('login-form').reset();
-        }
-    });
-
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const email = document.getElementById('register-email').value;
-        const password = document.getElementById('register-password').value;
-        const errEl = document.getElementById('auth-error');
-        const btn = document.getElementById('btn-register');
-        
-        btn.textContent = 'Creating account...';
-        btn.disabled = true;
-        
-        const { data, error } = await db.auth.signUp({ email, password });
-        
-        btn.textContent = '✨ Create Account';
-        btn.disabled = false;
-        
-        if (error) {
-            errEl.textContent = error.message;
-            errEl.classList.remove('hidden');
-        } else {
-            errEl.classList.add('hidden');
-            if (data.user && data.session) {
-                // Auto logged in
-                document.getElementById('register-form').reset();
-            } else {
-                errEl.textContent = "Please check your email to verify your account.";
-                errEl.classList.remove('hidden');
-            }
-        }
-    });
-}
-
-function switchKeyTab(tabName) {
-    document.querySelectorAll('.key-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.key-panel').forEach(p => p.classList.remove('active'));
-    const t = document.getElementById('tab-' + tabName);
-    if(t) t.classList.add('active');
-    document.getElementById('panel-' + tabName).classList.add('active');
-}
-
-async function initApp() {
-    document.getElementById('app').classList.remove('hidden');
-    document.getElementById('settings-share-id-display').textContent = userKey;
-    showLoader();
-    await fetchClasses();
-    await fetchExams();
-    await fetchTasks();
-    hideLoader();
-    updateAllViews();
-    setInterval(updateTimers, 1000);
-    setInterval(checkReminders, 30000);
-    if ('Notification' in window && Notification.permission !== 'granted') Notification.requestPermission();
-}
-
-async function fetchClasses() {
-    if (!db) return;
-    try {
-        const { data, error } = await db.from('classes').select('*').eq('user_id', userKey);
-        if (!error) classes = data || [];
-    } catch(e) { console.error(e); }
-}
-
-async function fetchExams() {
-    if (!db) return;
-    try {
-        const { data, error } = await db.from('exams').select('*').eq('user_id', userKey);
-        if (!error) exams = data || [];
-    } catch(e) { console.error(e); }
-}
-
-async function fetchTasks() {
-    if (!db) return;
-    try {
-        const { data, error } = await db.from('tasks').select('*').eq('user_id', userKey);
-        if (!error) tasks = data || [];
-    } catch(e) { console.error(e); }
-}
-
-function setupNavigation() {
-    const navItems = document.querySelectorAll('.nav-item:not(.nav-fab)');
-    const tabs = document.querySelectorAll('.tab-section');
-
-    navItems.forEach(nav => {
-        nav.addEventListener('click', () => {
-            navItems.forEach(n => n.classList.remove('active'));
-            nav.classList.add('active');
-            tabs.forEach(t => {
-                t.classList.remove('active');
-                if(t.id === `tab-${nav.dataset.tab}`) t.classList.add('active');
-            });
-        });
-    });
-
-    const fab = document.getElementById('nav-add');
-    const sheetOverlay = document.getElementById('fab-sheet-overlay');
-    const sheet = document.getElementById('fab-sheet');
-    const toggleSheet = () => {
-        sheetOverlay.classList.toggle('hidden');
-        sheet.classList.toggle('hidden');
-    };
-    fab.addEventListener('click', toggleSheet);
-    sheetOverlay.addEventListener('click', toggleSheet);
-    document.querySelector('.sheet-handle').addEventListener('click', toggleSheet);
-
-    document.getElementById('fab-add-class').addEventListener('click', () => {
-        toggleSheet(); document.getElementById('nav-search').click();
-        document.getElementById('manual-class-form-wrap').scrollIntoView({behavior: 'smooth'});
-    });
-    document.getElementById('fab-add-exam').addEventListener('click', () => {
-        toggleSheet(); document.getElementById('nav-search').click();
-        document.getElementById('manual-exam-form-wrap').scrollIntoView({behavior: 'smooth'});
-    });
-    document.getElementById('fab-add-task').addEventListener('click', () => {
-        toggleSheet(); document.getElementById('nav-search').click();
-        document.getElementById('manual-task-form-wrap').scrollIntoView({behavior: 'smooth'});
-    });
-    document.getElementById('fab-search-add').addEventListener('click', () => {
-        toggleSheet(); document.getElementById('nav-search').click();
-        document.getElementById('course-search-input').focus();
-    });
-    document.getElementById('btn-add-class-shortcut').addEventListener('click', () => {
-        document.getElementById('nav-search').click();
-        document.getElementById('manual-class-form-wrap').scrollIntoView({behavior: 'smooth'});
-    });
-    document.getElementById('btn-add-exam-shortcut').addEventListener('click', () => {
-        document.getElementById('nav-search').click();
-        document.getElementById('manual-exam-form-wrap').scrollIntoView({behavior: 'smooth'});
-    });
-    document.getElementById('btn-add-task-shortcut').addEventListener('click', () => {
-        document.getElementById('nav-search').click();
-        document.getElementById('manual-task-form-wrap').scrollIntoView({behavior: 'smooth'});
-    });
-}function setupModals() {
-    document.getElementById('btn-settings').addEventListener('click', () => document.getElementById('modal-settings').classList.remove('hidden'));
-    document.getElementById('btn-help').addEventListener('click', () => document.getElementById('modal-help').classList.remove('hidden'));
-    document.querySelectorAll('.modal-close').forEach(btn => {
-        btn.addEventListener('click', () => document.getElementById(btn.dataset.modal).classList.add('hidden'));
-    });
-    document.querySelectorAll('.modal-overlay').forEach(overlay => {
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); });
-    });
-
-    document.getElementById('reminder-minutes').value = reminderLeadTime;
-    document.getElementById('reminder-minutes').addEventListener('change', (e) => {
-        reminderLeadTime = parseInt(e.target.value);
-        try { localStorage.setItem('reminderLeadTime', reminderLeadTime); } catch(err) {}
-    });
-
-    document.getElementById('btn-copy-share-id').addEventListener('click', (e) => {
-        navigator.clipboard.writeText(userKey);
-        e.target.textContent = 'Copied!';
-        setTimeout(() => e.target.textContent = 'Copy', 2000);
-    });
-
-    document.getElementById('btn-enable-notif').addEventListener('click', () => {
-        if ('Notification' in window) Notification.requestPermission().then(p => showToast('Notifications ' + p));
-    });
-
-    document.getElementById('btn-settings-import-key').addEventListener('click', async () => {
-        const inputKey = document.getElementById('settings-import-key-input').value.trim();
-        if (!inputKey || inputKey.length < 10) {
-            showToast("Please enter a valid key to import");
-            return;
-        }
-
-        if (inputKey === userKey) {
-            showToast("You cannot import from your own key");
-            return;
-        }
-
-        if (!db) {
-            showToast("Database connection error");
-            return;
-        }
-
-        const btn = document.getElementById('btn-settings-import-key');
-        const oldText = btn.textContent;
-        btn.textContent = 'Importing...';
-        btn.disabled = true;
-        showLoader();
-
-        try {
-            const { data: oldClasses } = await db.from('classes').select('*').eq('user_id', inputKey);
-            const { data: oldExams } = await db.from('exams').select('*').eq('user_id', inputKey);
-            const { data: oldTasks } = await db.from('tasks').select('*').eq('user_id', inputKey);
-
-            let added = false;
-
-            if (oldClasses && oldClasses.length > 0) {
-                const newClasses = oldClasses.map(c => {
-                    const { id, created_at, ...rest } = c;
-                    return { ...rest, user_id: userKey };
-                });
-                await db.from('classes').insert(newClasses);
-                added = true;
-            }
-
-            if (oldExams && oldExams.length > 0) {
-                const newExams = oldExams.map(e => {
-                    const { id, created_at, ...rest } = e;
-                    return { ...rest, user_id: userKey };
-                });
-                await db.from('exams').insert(newExams);
-                added = true;
-            }
-
-            if (oldTasks && oldTasks.length > 0) {
-                const newTasks = oldTasks.map(t => {
-                    const { id, created_at, ...rest } = t;
-                    return { ...rest, user_id: userKey };
-                });
-                await db.from('tasks').insert(newTasks);
-                added = true;
-            }
-
-            if (added) {
-                document.getElementById('settings-import-key-input').value = '';
-                document.getElementById('modal-settings').classList.add('hidden');
-                showToast("Schedule imported successfully!");
-                await fetchClasses();
-                await fetchExams();
-                await fetchTasks();
-                updateAllViews();
-            } else {
-                showToast("No data found for that key");
-            }
-        } catch (err) {
-            console.error(err);
-            showToast("Failed to import schedule");
-        } finally {
-            btn.textContent = oldText;
-            btn.disabled = false;
-            hideLoader();
-        }
-    });
-
-    document.getElementById('btn-clear-all-classes').addEventListener('click', async () => {
-        if(confirm("Are you sure you want to delete ALL classes?")) {
-            showLoader();
-            await db.from('classes').delete().eq('user_id', userKey);
-            classes = []; updateAllViews(); hideLoader();
-            document.getElementById('modal-settings').classList.add('hidden');
-            showToast('All classes cleared');
-        }
-    });
-
-    document.getElementById('btn-clear-all-exams').addEventListener('click', async () => {
-        if(confirm("Are you sure you want to delete ALL exams?")) {
-            showLoader();
-            await db.from('exams').delete().eq('user_id', userKey);
-            exams = []; updateAllViews(); hideLoader();
-            document.getElementById('modal-settings').classList.add('hidden');
-            showToast('All exams cleared');
-        }
-    });
-
-    document.getElementById('btn-logout').addEventListener('click', async () => {
-        if(confirm("Are you sure you want to log out?")) {
-            showLoader();
-            try {
-                const { error } = await db.auth.signOut();
-                if (error) throw error;
-            } catch (err) {
-                console.error("Logout error:", err);
-                showToast("Error logging out. Please try again.");
-            }
-            hideLoader();
-            location.reload();
-        }
-    });
-}function setupForms() {
-    document.querySelectorAll('.day-pill').forEach(pill => {
-        pill.addEventListener('click', () => pill.classList.toggle('active'));
-    });
-
-    document.getElementById('manual-class-form').addEventListener('submit', async (e) => {
+    setupPlanner();
         e.preventDefault();
         const course = document.getElementById('f-course').value;
+        const section = document.getElementById('f-section').value;
         const start_time = document.getElementById('f-start').value;
         const end_time = document.getElementById('f-end').value;
         const type = document.getElementById('f-type').value;
@@ -377,7 +45,7 @@ function setupNavigation() {
         
         if (activeDays.length === 0) { showToast('Please select at least one day.'); return; }
         showLoader();
-        const inserts = activeDays.map(day => ({ user_id: userKey, course, start_time, end_time, day, type, room }));
+        const inserts = activeDays.map(day => ({ user_id: userKey, course, section, start_time, end_time, day, type, room }));
         const { data, error } = await db.from('classes').insert(inserts).select();
         
         if (!error) {
@@ -429,13 +97,14 @@ function setupNavigation() {
         e.preventDefault();
         const id = document.getElementById('edit-class-id').value;
         const course = document.getElementById('ec-course').value;
+        const section = document.getElementById('ec-section').value;
         const start_time = document.getElementById('ec-start').value;
         const end_time = document.getElementById('ec-end').value;
         const type = document.getElementById('ec-type').value;
         const room = document.getElementById('ec-room').value;
 
         showLoader();
-        const { data, error } = await db.from('classes').update({ course, start_time, end_time, type, room }).eq('id', id).select();
+        const { data, error } = await db.from('classes').update({ course, section, start_time, end_time, type, room }).eq('id', id).select();
         if (!error) {
             const idx = classes.findIndex(c => c.id === id);
             if(idx > -1) classes[idx] = data[0];
@@ -505,7 +174,7 @@ function setupNavigation() {
     });
 }
 
-function updateAllViews() { renderSchedule(); renderExams(); renderTasks(); renderHome(); updateTimers(); }
+function updateAllViews() { renderSchedule(); renderExams(); renderTasks(); renderHome(); renderPlanner(); updateTimers(); }
 
 function convertTo12Hour(time24) {
     if (!time24) return '';
@@ -558,6 +227,7 @@ window.editClass = function(id) {
     if(!cls) return;
     document.getElementById('edit-class-id').value = cls.id;
     document.getElementById('ec-course').value = cls.course;
+    document.getElementById('ec-section').value = cls.section || '';
     document.getElementById('ec-start').value = cls.start_time;
     document.getElementById('ec-end').value = cls.end_time;
     document.getElementById('ec-type').value = cls.type;
@@ -1001,7 +671,202 @@ window.addCourseFromSearch = async function(idx) {
         return t;
     };
 
-    const inserts = course.schedules.map(s => ({ user_id: userKey, course: course.title, day: s.day, start_time: convertTime(s.start), end_time: convertTime(s.end), type: s.type, room: s.room }));
+    const inserts = course.schedules.map(s => ({ user_id: userKey, course: course.title, section: course.section, day: s.day, start_time: convertTime(s.start), end_time: convertTime(s.end), type: s.type, room: s.room }));
+    
+    try {
+        const { data, error } = await db.from('classes').insert(inserts).select();
+        
+        if (!error) {
+            classes.push(...data); updateAllViews();
+            document.getElementById('course-search-input').value = '';
+            document.getElementById('search-results').innerHTML = '';
+            document.getElementById('btn-clear-search').classList.add('hidden');
+            document.getElementById('nav-schedule').click();
+            showToast('Course added successfully!');
+        } else { 
+            console.error(error);
+            showToast('Error saving to database.'); 
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Network error! Please check your connection.');
+    }
+    
+    hideLoader();
+};
+
+function checkReminders() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date();
+    const leadMs = reminderLeadTime * 60 * 1000;
+    classes.forEach(cls => {
+        const diff = getNextOccurrenceOfClass(cls, now) - now;
+        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) new Notification('Class Reminder', { body: 'Upcoming class: ' + cls.course + ' at ' + convertTo12Hour(cls.start_time) + ' (Room ' + cls.room + ')' });
+    });
+    exams.forEach(ex => {
+        const diff = new Date(ex.date + 'T' + ex.time) - now;
+        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) new Notification('Exam Reminder', { body: 'Upcoming exam: ' + ex.course + ' at ' + convertTo12Hour(ex.time) });
+    });
+    tasks.forEach(t => {
+        const diff = new Date(t.date + 'T' + t.time) - now;
+        if (diff > 0 && diff <= leadMs && diff > (leadMs - 30000)) new Notification('Task Reminder', { body: 'Upcoming task: ' + t.title + ' at ' + convertTo12Hour(t.time) });
+    });
+}
+
+function setupTheme() {
+    let savedTheme = 'theme-dark';
+    try {
+        savedTheme = localStorage.getItem('classify_theme') || 'theme-dark';
+    } catch(e) {}
+    
+    applyTheme(savedTheme);
+
+    const themeBtns = document.querySelectorAll('.theme-btn');
+    themeBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const theme = e.target.getAttribute('data-theme');
+            applyTheme(theme);
+        });
+    });
+}
+
+function applyTheme(themeName) {
+    document.body.className = themeName;
+    try { localStorage.setItem('classify_theme', themeName); } catch(e) {}
+        heroCard.innerHTML = `
+            <div class="hero-label exam">📝 NEXT EXAM</div>
+            <div class="hero-course">${nextExam.course}</div>
+            <div class="hero-meta">${new Date(nextExam.date).toLocaleDateString()} at ${convertTo12Hour(nextExam.time)}</div>
+            <div class="hero-countdown">${formatDuration(minExamDiff)}</div>`;
+    } else if (nextTask && (!nextClass || minTaskDiff < minClassDiff) && (!nextExam || minTaskDiff < minExamDiff)) {
+        heroCard.innerHTML = `
+            <div class="hero-label exam" style="color:var(--amber);">📌 NEXT TASK</div>
+            <div class="hero-course">${nextTask.title}</div>
+            <div class="hero-meta">${new Date(nextTask.date).toLocaleDateString()} at ${convertTo12Hour(nextTask.time)}</div>
+            <div class="hero-countdown">${formatDuration(minTaskDiff)}</div>`;
+    } else {
+        heroCard.innerHTML = `<div class="no-event">No upcoming classes or exams.<br>Enjoy your free time! ✨</div>`;
+    }
+
+    const ticker = document.getElementById('ticker-text');
+    if (currentClass) ticker.innerHTML = `<span>🔴 Now: ${currentClass.course}</span>`;
+    else if (minClassDiff < minExamDiff && nextClass) ticker.innerHTML = `<span>⏳ Next: ${nextClass.course} in ${formatDuration(minClassDiff)}</span>`;
+    else if (nextExam) ticker.innerHTML = `<span>📝 Exam: ${nextExam.course} in ${formatDuration(minExamDiff)}</span>`;
+    else ticker.innerHTML = `<span>All clear ✨</span>`;
+
+    const examBanner = document.getElementById('next-exam-banner');
+    if (nextExam) {
+        examBanner.innerHTML = `
+            <div class="exam-course">${nextExam.course}</div>
+            <div class="exam-meta">${new Date(nextExam.date).toLocaleDateString()} at ${convertTo12Hour(nextExam.time)}</div>
+            <div class="exam-countdown-big">${formatDuration(minExamDiff)}</div>`;
+    } else {
+        examBanner.innerHTML = `<span class="empty-state" style="padding:10px 0;">No upcoming exams 🎉</span>`;
+    }
+}function loadProjectCSV() {
+    fetch('./Offered Course Report.csv')
+        .then(response => { if (!response.ok) throw new Error('CSV not found'); return response.text(); })
+        .then(csvText => parseCSV(csvText))
+        .catch(err => console.log('CSV Search disabled:', err));
+}
+
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r\n|\n|\r/);
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const rawCourses = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+            const values = [];
+            let current = '', inQuotes = false;
+            for (let j = 0; j < lines[i].length; j++) {
+                const char = lines[i][j];
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) { values.push(current); current = ''; }
+                else current += char;
+            }
+            values.push(current);
+            if (values.length >= headers.length) {
+                const course = {};
+                headers.forEach((h, idx) => course[h] = values[idx] ? values[idx].trim().replace(/"/g, '') : '');
+                rawCourses.push(course);
+            }
+        }
+    }
+    
+    const grouped = {};
+    rawCourses.forEach(c => {
+        const key = c['Course Title'] + '_' + c['Section'];
+        if (!grouped[key]) grouped[key] = { title: c['Course Title'], code: c['Course Code'], section: c['Section'], schedules: [] };
+        if (c['Day'] && c['Start Time'] && c['End Time']) {
+            grouped[key].schedules.push({ day: c['Day'], start: c['Start Time'], end: c['End Time'], type: c['Type'] || 'Theory', room: c['Room'] || '' });
+        }
+    });
+    
+    csvCourses = Object.values(grouped).map(c => {
+        const unique = [], seen = new Set();
+        c.schedules.forEach(s => {
+            const key = s.day + '_' + s.start + '_' + s.end;
+            if (!seen.has(key)) { seen.add(key); unique.push(s); }
+        });
+        c.schedules = unique; return c;
+    });
+    
+    const searchInput = document.getElementById('course-search-input');
+    const clearBtn = document.getElementById('btn-clear-search');
+    
+    searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase();
+        if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
+        if (val.length < 2) { document.getElementById('search-results').innerHTML = ''; return; }
+        const filtered = csvCourses.filter(c => {
+            const t = c.title?.toLowerCase() || '';
+            const code = c.code?.toLowerCase() || '';
+            const sec = c.section?.toLowerCase() || '';
+            return t.includes(val) || code.includes(val) || sec.includes(val);
+        });
+        
+        const container = document.getElementById('search-results');
+        const results = filtered.slice(0, 20);
+        if (results.length === 0) { container.innerHTML = '<div style="padding:10px; color:var(--text2); text-align:center;">No courses found.</div>'; return; }
+        
+        window._tempCourses = results;
+        container.innerHTML = results.map((c, i) => {
+            const scheds = c.schedules.map(s => s.day + ' ' + s.start + '-' + s.end + ' (' + s.room + ')').join(', ');
+            return `
+                <div class="search-result-item" onclick="addCourseFromSearch(${i})">
+                    <div class="search-result-title">${c.title}</div>
+                    <div class="search-result-meta">Code: ${c.code} | Sec: ${c.section}</div>
+                    <div class="search-result-schedules">${scheds || 'No schedule'}</div>
+                    <button class="btn-add-course">+ Add to Schedule</button>
+                </div>`;
+        }).join('');
+    });
+    
+    clearBtn.addEventListener('click', () => {
+        searchInput.value = ''; clearBtn.classList.add('hidden');
+        document.getElementById('search-results').innerHTML = ''; searchInput.focus();
+    });
+}
+
+window.addCourseFromSearch = async function(idx) {
+    const course = window._tempCourses[idx];
+    if (!course || course.schedules.length === 0) { showToast('No schedule data found.'); return; }
+    if(!confirm('Add ' + course.title + ' to your schedule?')) return;
+
+    showLoader();
+    const convertTime = (t) => {
+        const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+        if(m) {
+            let h = parseInt(m[1]);
+            if(m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+            if(m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+            return h.toString().padStart(2,'0') + ':' + m[2];
+        }
+        return t;
+    };
+
+    const inserts = course.schedules.map(s => ({ user_id: userKey, course: course.title, section: course.section, day: s.day, start_time: convertTime(s.start), end_time: convertTime(s.end), type: s.type, room: s.room }));
     
     try {
         const { data, error } = await db.from('classes').insert(inserts).select();
@@ -1071,4 +936,482 @@ function applyTheme(themeName) {
             btn.classList.remove('active');
         }
     });
+}
+
+
+/** ADMIN & SYNC LOGIC **/
+
+function setupAdminPanel() {
+    const fileInput = document.getElementById('admin-pdf-upload');
+    const processBtn = document.getElementById('btn-admin-process');
+    const status = document.getElementById('admin-pdf-status');
+    const resultsDiv = document.getElementById('admin-results');
+
+    processBtn.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) { showToast("Please select a PDF file"); return; }
+        
+        showLoader();
+        status.textContent = "Processing PDF... Please wait.";
+        resultsDiv.classList.add('hidden');
+        resultsDiv.innerHTML = '';
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            let fullText = "";
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(item => item.str).join(' ');
+                fullText += pageText + "\n";
+            }
+
+            const parsedExams = parseExamSchedule(fullText);
+            if (parsedExams.length === 0) {
+                status.textContent = "No exams found. Check PDF format.";
+            } else {
+                status.textContent = `Found ${parsedExams.length} exams. Syncing to database...`;
+                const type = document.getElementById('admin-exam-type').value;
+                
+                // Add exam type to all
+                parsedExams.forEach(ex => ex.exam_type = type);
+
+                // 1. Clear existing global exams
+                const { error: delError } = await db.from('global_exams').delete().neq('id', 0);
+                if (delError) throw delError;
+
+                // 2. Upload to Supabase
+                const { error } = await db.from('global_exams').insert(parsedExams);
+                if (error) throw error;
+
+                status.textContent = `✅ Successfully synced ${parsedExams.length} exams to the global database!`;
+                resultsDiv.classList.remove('hidden');
+                resultsDiv.innerHTML = parsedExams.map(ex => `<div>${ex.exam_date} | ${ex.course} (${ex.sections})</div>`).join('');
+            }
+        } catch (err) {
+            console.error(err);
+            status.textContent = "Error processing PDF: " + err.message;
+        }
+        hideLoader();
+    });
+
+    const plannerBtn = document.getElementById('btn-admin-planner-process');
+    const plannerFile = document.getElementById('admin-planner-file');
+    const plannerStatus = document.getElementById('admin-planner-status');
+
+    if (plannerBtn) {
+        plannerBtn.addEventListener('click', async () => {
+            const file = plannerFile.files[0];
+            if (!file) { showToast("Please select an Excel or CSV file"); return; }
+            
+            showLoader();
+            plannerStatus.textContent = "Processing Planner Data...";
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                let parsedCourses = [];
+
+                if (file.name.endsWith('.csv')) {
+                    const text = new TextDecoder().decode(arrayBuffer);
+                    parsedCourses = parsePlannerCSV(text);
+                } else {
+                    // Excel
+                    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                    const firstSheet = workbook.SheetNames[0];
+                    const json = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+                    parsedCourses = parsePlannerJSON(json);
+                }
+
+                if (parsedCourses.length === 0) {
+                    plannerStatus.textContent = "No courses found. Check file format.";
+                } else {
+                    plannerStatus.textContent = `Found ${parsedCourses.length} rows. Syncing...`;
+                    
+                    // Clear existing
+                    await db.from('global_planner_courses').delete().neq('id', 0);
+
+                    // Insert in batches of 1000 to prevent payload limits
+                    for(let i = 0; i < parsedCourses.length; i += 1000) {
+                        const batch = parsedCourses.slice(i, i + 1000);
+                        const { error } = await db.from('global_planner_courses').insert(batch);
+                        if (error) throw error;
+                    }
+
+                    plannerStatus.textContent = `✅ Synced ${parsedCourses.length} courses for Planner!`;
+                }
+            } catch (err) {
+                console.error(err);
+                plannerStatus.textContent = "Error: " + err.message;
+            }
+            hideLoader();
+        });
+    }
+}
+
+function parseExamSchedule(text) {
+    const lines = text.split('\n');
+    const exams = [];
+    let currentDate = null;
+
+    // Pattern for Date: Day 1 : May 10, 2026 ( Sunday )
+    const dateRegex = /Day\s+\d+\s*:\s*([A-Za-z]+\s+\d+,\s+\d{4})/i;
+    // Pattern for Exam: 3:00 PM - 5:00 PM COURSE TITLE SECTIONS VENUE
+    const timeRegex = /(\d{1,2}:\d{2}\s*(?:AM|PM))\s*-\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/gi;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        
+        const dateMatch = line.match(dateRegex);
+        if (dateMatch) {
+            currentDate = new Date(dateMatch[1]).toISOString().split('T')[0];
+            continue;
+        }
+
+        if (!currentDate) continue;
+
+        let timeMatch;
+        while ((timeMatch = timeRegex.exec(line)) !== null) {
+            const startTime = convertTo24Hour(timeMatch[1]);
+            const endTime = convertTo24Hour(timeMatch[2]);
+            
+            let rest = line.substring(timeMatch.index + timeMatch[0].length).trim();
+            const sectionMatch = rest.match(/([A-Z,]+|All)\s+(Annexes|Main Building|TBA|[\w\s]+)$/i);
+            
+            if (sectionMatch) {
+                const course = rest.substring(0, sectionMatch.index).trim();
+                const sections = sectionMatch[1].trim();
+                const room = sectionMatch[2].trim();
+
+                if (course && sections) {
+                    exams.push({
+                        course: course,
+                        sections: sections,
+                        exam_date: currentDate,
+                        start_time: startTime,
+                        end_time: endTime,
+                        room: room
+                    });
+                }
+            }
+        }
+    }
+    return exams;
+}
+
+function convertTo24Hour(timeStr) {
+    if (!timeStr) return "00:00:00";
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') hours = '00';
+    if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+    return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
+}
+
+async function checkGlobalExams() {
+    if (!db || !userKey) return;
+    
+    const { data: userClasses } = await db.from('classes').select('course, section').eq('user_id', userKey);
+    if (!userClasses || userClasses.length === 0) return;
+
+    const { data: globalExams } = await db.from('global_exams').select('*');
+    if (!globalExams || globalExams.length === 0) return;
+
+    const newExams = [];
+    for (const ge of globalExams) {
+        const sections = ge.sections.split(',').map(s => s.trim());
+        const match = userClasses.find(uc => 
+            uc.course.toLowerCase() === ge.course.toLowerCase() && 
+            (sections.includes(uc.section) || ge.sections === 'All')
+        );
+
+        if (match) {
+            const exists = exams.find(e => e.course === ge.course && e.date === ge.exam_date);
+            if (!exists) {
+                newExams.push(ge);
+            }
+        }
+    }
+
+    if (newExams.length > 0) {
+        const modal = document.getElementById('modal-sync-prompt');
+        const text = document.getElementById('sync-prompt-text');
+        text.innerHTML = `✨ We found <strong>${newExams.length} exams</strong> matching your courses (${newExams.map(e => e.course).join(', ')}). Would you like to sync them to your schedule?`;
+        modal.classList.remove('hidden');
+
+        document.getElementById('btn-sync-now').onclick = async () => {
+            showLoader();
+            const inserts = newExams.map(ge => ({
+                user_id: userKey,
+                course: ge.course,
+                date: ge.exam_date,
+                time: ge.start_time,
+                notes: `${ge.exam_type ? ge.exam_type + ' ' : ''}Room: ${ge.room || 'TBA'}`
+            }));
+
+            const { data, error } = await db.from('exams').insert(inserts).select();
+            if (!error) {
+                exams.push(...data);
+                updateAllViews();
+                showToast("Exams synced successfully!");
+            } else {
+                showToast("Error syncing exams");
+            }
+            modal.classList.add('hidden');
+            hideLoader();
+        };
+    }
+}
+
+/** PLANNER LOGIC **/
+
+function setupPlanner() {
+    const searchInput = document.getElementById('planner-search-input');
+    const clearBtn = document.getElementById('btn-clear-planner-search');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            if(val.length > 0) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden');
+            if (val.length < 2) { document.getElementById('planner-search-results').innerHTML = ''; return; }
+            const filtered = plannerCourses.filter(c => {
+                const t = c.title?.toLowerCase() || '';
+                const code = c.code?.toLowerCase() || '';
+                const sec = c.section?.toLowerCase() || '';
+                return t.includes(val) || code.includes(val) || sec.includes(val);
+            });
+            
+            const container = document.getElementById('planner-search-results');
+            const results = filtered.slice(0, 20);
+            if (results.length === 0) { container.innerHTML = '<div style="padding:10px; color:var(--text2); text-align:center;">No courses found in planner database.</div>'; return; }
+            
+            window._tempPlannerCourses = results;
+            container.innerHTML = results.map((c, i) => {
+                const scheds = c.schedules.map(s => s.day + ' ' + convertTo12Hour(s.start) + '-' + convertTo12Hour(s.end) + ' (' + s.room + ')').join(', ');
+                return `
+                    <div class="search-result-item" onclick="addCourseToPlanner(${i})">
+                        <div class="search-result-title">${c.title}</div>
+                        <div class="search-result-meta">Code: ${c.code} | Sec: ${c.section}</div>
+                        <div class="search-result-schedules">${scheds || 'No schedule'}</div>
+                        <button class="btn-add-course">+ Add to Plan</button>
+                    </div>`;
+            }).join('');
+        });
+        
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = ''; clearBtn.classList.add('hidden');
+            document.getElementById('planner-search-results').innerHTML = ''; searchInput.focus();
+        });
+    }
+}
+
+window.addCourseToPlanner = async function(idx) {
+    const course = window._tempPlannerCourses[idx];
+    if (!course || course.schedules.length === 0) { showToast('No schedule data found.'); return; }
+    
+    // Check for clashes
+    for (const sched of course.schedules) {
+        const clash = checkClash(sched.day, sched.start, sched.end, plannerSchedule);
+        if (clash) {
+            alert(`⚠️ Clash Detected!\nCannot add ${course.title} because it clashes with ${clash.course} on ${clash.day} at ${convertTo12Hour(clash.start_time)}.`);
+            return;
+        }
+    }
+
+    if(!confirm('Add ' + course.title + ' to your planner?')) return;
+
+    showLoader();
+    const inserts = course.schedules.map(s => ({ 
+        user_id: userKey, 
+        course: course.title, 
+        section: course.section, 
+        day: s.day, 
+        start_time: s.start, 
+        end_time: s.end, 
+        type: s.type, 
+        room: s.room 
+    }));
+    
+    try {
+        const { data, error } = await db.from('planner_schedule').insert(inserts).select();
+        if (!error) {
+            plannerSchedule.push(...data); 
+            updateAllViews();
+            document.getElementById('planner-search-input').value = '';
+            document.getElementById('planner-search-results').innerHTML = '';
+            document.getElementById('btn-clear-planner-search').classList.add('hidden');
+            showToast('Course added to plan!');
+        } else { 
+            console.error(error);
+            showToast('Error saving to database.'); 
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Network error! Please check your connection.');
+    }
+    
+    hideLoader();
+};
+
+window.deletePlannerCourse = async function(title, section) {
+    if(confirm(`Remove ${title} from planner?`)) {
+        showLoader();
+        const { error } = await db.from('planner_schedule').delete().eq('user_id', userKey).eq('course', title).eq('section', section);
+        if (!error) {
+            plannerSchedule = plannerSchedule.filter(c => !(c.course === title && c.section === section));
+            updateAllViews();
+        } else {
+            showToast('Error removing course.');
+        }
+        hideLoader();
+    }
+};
+
+function checkClash(newDay, newStart, newEnd, scheduleArray) {
+    // Both times are 'HH:MM:SS' strings
+    const newStartMins = timeToMins(newStart);
+    const newEndMins = timeToMins(newEnd);
+    
+    for (const c of scheduleArray) {
+        if (c.day === newDay) {
+            const cStartMins = timeToMins(c.start_time);
+            const cEndMins = timeToMins(c.end_time);
+            // Overlap condition: start1 < end2 && start2 < end1
+            if (newStartMins < cEndMins && cStartMins < newEndMins) {
+                return c; // Return the clashing class
+            }
+        }
+    }
+    return null;
+}
+
+function timeToMins(timeStr) {
+    if (!timeStr) return 0;
+    const parts = timeStr.split(':');
+    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+}
+
+function renderPlanner() {
+    const container = document.getElementById('planner-container');
+    if (!container) return;
+
+    if (plannerSchedule.length === 0) {
+        container.innerHTML = '<p class="empty-state full-empty">No planned courses yet.<br/>Search above to add to your plan.</p>';
+        return;
+    }
+
+    // Group by course + section
+    const grouped = {};
+    plannerSchedule.forEach(c => {
+        const key = c.course + '_' + c.section;
+        if (!grouped[key]) {
+            grouped[key] = { course: c.course, section: c.section, schedules: [] };
+        }
+        grouped[key].schedules.push(c);
+    });
+
+    let html = '';
+    Object.values(grouped).forEach(g => {
+        const schedsHtml = g.schedules.map(s => `<div style="font-size: 0.85rem; color: var(--text2); margin-top: 4px;">• ${s.day} ${convertTo12Hour(s.start_time)} - ${convertTo12Hour(s.end_time)} (${s.room})</div>`).join('');
+        html += `
+            <div class="routine-card planner-card">
+                <div class="rc-header">
+                    <span class="rc-course">${g.course}</span>
+                    <button class="icon-btn rc-delete" onclick="deletePlannerCourse('${g.course}', '${g.section}')">
+                      <svg viewBox="0 0 20 20" fill="none" width="16" height="16"><path d="M4 5h12M9 9v4M11 9v4M5 5l1 10c0 1 1 2 2 2h4c1 0 2-1 2-2l1-10M8 5V3c0-1 1-2 2-2s2 1 2 2v2" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                </div>
+                <div class="rc-meta">Section: ${g.section}</div>
+                ${schedsHtml}
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function parsePlannerJSON(json) {
+    const rawCourses = [];
+    json.forEach(c => {
+        if (c['Course Title'] && c['Section']) {
+            const formatTime = (t) => {
+                if (typeof t === 'number') {
+                    const totalSeconds = Math.round(t * 86400);
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    let suffix = 'AM';
+                    let h12 = hours;
+                    if (h12 >= 12) {
+                        suffix = 'PM';
+                        if (h12 > 12) h12 -= 12;
+                    }
+                    if (h12 === 0) h12 = 12;
+                    return `${h12}:${minutes.toString().padStart(2, '0')} ${suffix}`;
+                }
+                return t ? t.toString() : '';
+            };
+            
+            rawCourses.push({
+                course_title: c['Course Title'],
+                course_code: c['Course Code'] || '',
+                section: c['Section'],
+                day: c['Day'] || '',
+                start_time: convertTimeForPlanner(formatTime(c['Start Time'])),
+                end_time: convertTimeForPlanner(formatTime(c['End Time'])),
+                type: c['Type'] || 'Theory',
+                room: c['Room'] || ''
+            });
+        }
+    });
+    return rawCourses;
+}
+
+function parsePlannerCSV(csvText) {
+    const lines = csvText.split(/\r\n|\n|\r/);
+    if(lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const rawCourses = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+            const values = [];
+            let current = '', inQuotes = false;
+            for (let j = 0; j < lines[i].length; j++) {
+                const char = lines[i][j];
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) { values.push(current); current = ''; }
+                else current += char;
+            }
+            values.push(current);
+            if (values.length >= headers.length) {
+                const course = {};
+                headers.forEach((h, idx) => course[h] = values[idx] ? values[idx].trim().replace(/"/g, '') : '');
+                
+                rawCourses.push({
+                    course_title: course['Course Title'],
+                    course_code: course['Course Code'] || '',
+                    section: course['Section'],
+                    day: course['Day'] || '',
+                    start_time: convertTimeForPlanner(course['Start Time']),
+                    end_time: convertTimeForPlanner(course['End Time']),
+                    type: course['Type'] || 'Theory',
+                    room: course['Room'] || ''
+                });
+            }
+        }
+    }
+    return rawCourses;
+}
+
+function convertTimeForPlanner(t) {
+    if (!t) return null;
+    const m = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    if(m) {
+        let h = parseInt(m[1]);
+        if(m[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+        if(m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+        return h.toString().padStart(2,'0') + ':' + m[2] + ':00';
+    }
+    return null;
 }
