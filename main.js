@@ -1347,11 +1347,13 @@ function renderTasks() {
         heroCard.innerHTML = `<div class="no-event">No upcoming classes or exams.<br>Enjoy your free time!</div>`;
     }
 
-    const ticker = document.getElementById('ticker-text');
-    if (currentClass) ticker.innerHTML = `<span>Now: ${currentClass.course}</span>`;
-    else if (minClassDiff < minExamDiff && nextClass) ticker.innerHTML = `<span>Next: ${nextClass.course} in ${formatDuration(minClassDiff)}</span>`;
-    else if (nextExam) ticker.innerHTML = `<span>Exam: ${nextExam.course} in ${formatDuration(minExamDiff)}</span>`;
-    else ticker.innerHTML = `<span>All clear</span>`;
+
+
+
+
+
+
+
 
     const examBanner = document.getElementById('next-exam-banner');
     if (nextExam) {
@@ -2236,9 +2238,60 @@ function initNotifToggle() {
     });
 }
 
+function initNotifToggle() {
+    const btn = document.getElementById('btn-toggle-notifs');
+    if (!btn) return;
+
+    const updateUI = () => {
+        const enabled = localStorage.getItem('notifEnabled') === 'true';
+        if (enabled) {
+            btn.classList.add('active');
+            btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0"/></svg>';
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        }
+        
+        // Sync the settings toggle if it exists
+        const settingsToggle = document.getElementById('toggle-notifications');
+        if (settingsToggle) settingsToggle.checked = enabled;
+    };
+
+    updateUI();
+
+    btn.addEventListener('click', async () => {
+        const currentlyEnabled = localStorage.getItem('notifEnabled') === 'true';
+        if (!currentlyEnabled) {
+            if (window.Capacitor) {
+                const { LocalNotifications } = window.Capacitor.Plugins;
+                const perm = await LocalNotifications.requestPermissions();
+                if (perm.display !== 'granted') {
+                    showToast('Notification permission denied');
+                    return;
+                }
+            }
+            localStorage.setItem('notifEnabled', 'true');
+            showToast('Notifications enabled');
+            syncNativeNotifications();
+        } else {
+            localStorage.setItem('notifEnabled', 'false');
+            showToast('Notifications disabled');
+            if (window.Capacitor) {
+                const { LocalNotifications } = window.Capacitor.Plugins;
+                const pending = await LocalNotifications.getPending();
+                if (pending.notifications.length > 0) {
+                    await LocalNotifications.cancel(pending);
+                }
+            }
+        }
+        updateUI();
+    });
+}
+
 function setupNotificationSettings() {
     const reminderSelect = document.getElementById('reminder-minutes');
     if (reminderSelect) {
+        reminderSelect.value = reminderLeadTime;
         reminderSelect.addEventListener('change', (e) => {
             reminderLeadTime = parseInt(e.target.value);
             localStorage.setItem('reminderLeadTime', reminderLeadTime);
@@ -2272,6 +2325,36 @@ function setupNotificationSettings() {
                         body: 'This is how your class reminders will look!'
                     });
                 }, 10000);
+            }
+        });
+    }
+
+    const settingsToggle = document.getElementById('toggle-notifications');
+    if (settingsToggle) {
+        settingsToggle.checked = localStorage.getItem('notifEnabled') === 'true';
+        settingsToggle.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('notifEnabled', enabled);
+            if (enabled) {
+                if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+                    const { LocalNotifications } = window.Capacitor.Plugins;
+                    const perm = await LocalNotifications.requestPermissions();
+                    if (perm.display !== 'granted') {
+                        showToast('Notification permission denied');
+                        e.target.checked = false;
+                        localStorage.setItem('notifEnabled', 'false');
+                        return;
+                    }
+                }
+                syncNativeNotifications();
+                showToast('Notifications enabled');
+            } else {
+                showToast('Notifications disabled');
+                if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+                    const { LocalNotifications } = window.Capacitor.Plugins;
+                    const p = await LocalNotifications.getPending();
+                    if (p.notifications.length > 0) await LocalNotifications.cancel(p);
+                }
             }
         });
     }

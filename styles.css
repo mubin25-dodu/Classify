@@ -372,8 +372,14 @@ input,select,textarea{font-family:inherit}
 /* ═══════════════════════════════ SECTION HEADERS ═══════════════════════════ */
 .section-header{
   display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:16px;gap:12px;
-}.section-title{font-size:1rem;font-weight:800;color:var(--text);letter-spacing:-0.2px}
+  margin-bottom:16px;gap:12px;flex-wrap:nowrap;
+}
+.section-title{
+  font-size:1rem;font-weight:800;color:var(--text);
+  letter-spacing:-0.2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.section-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .section-badge{font-size:.75rem;color:var(--accent);font-weight:600}
 
 /* ═══════════════════════════════ HERO CARD ═════════════════════════════════ */
