@@ -26,7 +26,11 @@ function hideLoader() { document.getElementById('global-loader').classList.add('
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const storedTime = localStorage.getItem('reminderLeadTime');
-        if (storedTime) reminderLeadTime = parseInt(storedTime);
+        if (storedTime) {
+            reminderLeadTime = parseInt(storedTime);
+            const select = document.getElementById('reminder-minutes');
+            if (select) select.value = reminderLeadTime.toString();
+        }
     } catch (e) { console.warn('localStorage not available', e); }
 
     setupTheme();
@@ -231,8 +235,6 @@ async function initApp() {
     ]);
     hideLoader();
     
-    updateAllViews();
-
     // Banner logic
     const banner = document.getElementById('download-banner');
     const isNative = window.Capacitor && window.Capacitor.getPlatform() !== 'web';
@@ -245,6 +247,7 @@ async function initApp() {
         localStorage.setItem('bannerDismissed', 'true');
     });
 
+    updateAllViews();
     syncNativeNotifications();
     setInterval(updateTimers, 1000);
     setInterval(checkReminders, 30000);
@@ -259,7 +262,6 @@ async function initApp() {
             const { LocalNotifications } = window.Capacitor.Plugins;
             LocalNotifications.checkPermissions().then(status => {
                 if (status.display !== 'granted') LocalNotifications.requestPermissions();
-                else syncNativeNotifications();
             });
         }
     }
@@ -344,7 +346,7 @@ function setupNavigation() {
         toggleSheet(); document.getElementById('nav-search').click();
         document.getElementById('manual-task-form-wrap').scrollIntoView({behavior: 'smooth'});
     });
-    document.getElementById('fab-search-add').addEventListener('click', () => {
+    document.getElementById('fab-search-add')?.addEventListener('click', () => {
         toggleSheet(); document.getElementById('nav-search').click();
         document.getElementById('course-search-input').focus();
     });
@@ -414,7 +416,6 @@ function setupNavigation() {
         document.getElementById('nav-search').click();
         document.getElementById('manual-task-form-wrap').scrollIntoView({behavior: 'smooth'});
     });
-
     const manualSyncBtn = document.getElementById('btn-sync-global-exams');
     if (manualSyncBtn) {
         manualSyncBtn.addEventListener('click', async () => {
@@ -423,7 +424,6 @@ function setupNavigation() {
             manualSyncBtn.innerHTML = '<span class="sync-icon spinning">🔄</span> Syncing...';
             try {
                 await checkGlobalExams();
-                // If the modal didn't show up, show a toast
                 setTimeout(() => {
                     const modal = document.getElementById('modal-sync-prompt');
                     if (!modal || modal.classList.contains('hidden')) {
@@ -441,7 +441,45 @@ function setupNavigation() {
             }
         });
     }
-}function setupModals() {
+}
+
+window.addCourseToPlanner = async function(idx) {
+    const course = window._tempPlannerResults[idx];
+    if (!course) return;
+    
+    // Check for clash
+    const dayArr = Array.isArray(course.schedules) ? course.schedules : [];
+    for(const s of dayArr) {
+        const clash = checkClash(s.day, s.start, s.end, plannerSchedule);
+        if(clash) {
+            if(!confirm(`Clash detected with ${clash.course_title} on ${s.day}. Add anyway?`)) return;
+        }
+    }
+
+    showLoader();
+    const inserts = dayArr.map(s => ({
+        user_id: userKey,
+        course_title: course.title,
+        course_code: course.code,
+        section: course.section,
+        day: s.day,
+        start_time: s.start,
+        end_time: s.end
+    }));
+
+    try {
+        const { data, error } = await db.from('planner_schedule').insert(inserts).select();
+        if(!error) {
+            plannerSchedule.push(...data);
+            renderPlanner();
+            showToast('Added to planner');
+            document.getElementById('planner-search-input').value = '';
+            document.getElementById('planner-search-results').innerHTML = '';
+            document.getElementById('btn-clear-planner-search').classList.add('hidden');
+        }
+    } catch(e) { console.error(e); }
+    hideLoader();
+};function setupModals() {
     document.getElementById('btn-settings').addEventListener('click', () => document.getElementById('modal-settings').classList.remove('hidden'));
     document.getElementById('btn-help').addEventListener('click', () => document.getElementById('modal-help').classList.remove('hidden'));
     document.getElementById('sb-help')?.addEventListener('click', () => document.getElementById('modal-help').classList.remove('hidden'));
@@ -456,6 +494,10 @@ function setupNavigation() {
     });
 
     document.getElementById('reminder-minutes').value = reminderLeadTime;
+    document.getElementById('reminder-minutes').addEventListener('change', (e) => {
+        reminderLeadTime = parseInt(e.target.value);
+        try { localStorage.setItem('reminderLeadTime', reminderLeadTime); } catch(err) {}
+    });
 
     document.getElementById('btn-copy-share-id').addEventListener('click', (e) => {
         navigator.clipboard.writeText(userKey);
@@ -463,7 +505,33 @@ function setupNavigation() {
         setTimeout(() => e.target.textContent = 'Copy', 2000);
     });
 
+    const toggleNotif = document.getElementById('toggle-notifications');
+    const reminderSelect = document.getElementById('reminder-minutes');
+    const testNotifBtn = document.getElementById('btn-test-notif');
 
+    if (toggleNotif) {
+        toggleNotif.checked = localStorage.getItem('notifEnabled') === 'true';
+        toggleNotif.addEventListener('change', async (e) => {
+            const enabled = e.target.checked;
+            localStorage.setItem('notifEnabled', enabled);
+            
+            if (enabled) {
+                if ('Notification' in window) {
+                    const permission = await Notification.requestPermission();
+                    showToast('Notifications ' + permission);
+                }
+                
+                // Capacitor Local Notifications permission
+                if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+                    const { LocalNotifications } = window.Capacitor.Plugins;
+                    const status = await LocalNotifications.requestPermissions();
+                    showToast('Native Notif: ' + status.display);
+                }
+            } else {
+                showToast('Notifications disabled');
+            }
+        });
+    }
 
     document.getElementById('btn-settings-import-key').addEventListener('click', async () => {
         const inputKey = document.getElementById('settings-import-key-input').value.trim();
@@ -740,11 +808,10 @@ function setupNavigation() {
         showLoader();
         const { data, error } = await db.from('classes').update({ course, start_time, end_time, type, room, remind }).eq('id', id).select();
         if (!error) {
-            const idx = classes.findIndex(c => c.id === id);
+            const idx = classes.findIndex(c => c.id == id);
             if(idx > -1) classes[idx] = data[0];
             updateAllViews(); document.getElementById('modal-edit-class').classList.add('hidden');
             showToast('Class updated');
-            syncNativeNotifications();
         }
         hideLoader();
     });
@@ -761,11 +828,10 @@ function setupNavigation() {
         showLoader();
         const { data, error } = await db.from('exams').update({ course, date, time, notes, remind }).eq('id', id).select();
         if (!error) {
-            const idx = exams.findIndex(ex => ex.id === id);
+            const idx = exams.findIndex(ex => ex.id == id);
             if(idx > -1) exams[idx] = data[0];
             updateAllViews(); document.getElementById('modal-edit-exam').classList.add('hidden');
             showToast('Exam updated');
-            syncNativeNotifications();
         }
         hideLoader();
     });
@@ -781,11 +847,12 @@ function setupNavigation() {
         showLoader();
         const { data, error } = await db.from('tasks').update({ title, date, time, remind }).eq('id', id).select();
         if (!error) {
-            const idx = tasks.findIndex(t => t.id === id);
+            const idx = tasks.findIndex(t => t.id == id);
             if(idx > -1) tasks[idx] = data[0];
-            updateAllViews(); document.getElementById('modal-edit-task').classList.add('hidden');
-            showToast('Task updated');
+            updateAllViews(); 
             syncNativeNotifications();
+            document.getElementById('modal-edit-task').classList.add('hidden');
+            showToast('Task updated');
         }
         hideLoader();
     });
@@ -862,7 +929,7 @@ function formatDuration(diffMs) {
 }
 
 window.editClass = function(id) {
-    const cls = classes.find(c => c.id === id);
+    const cls = classes.find(c => c.id == id);
     if(!cls) return;
     document.getElementById('edit-class-id').value = cls.id;
     document.getElementById('ec-course').value = cls.course;
@@ -875,7 +942,7 @@ window.editClass = function(id) {
 };
 
 window.deleteClass = async function(id) {
-    const idx = classes.findIndex(c => c.id === id);
+    const idx = classes.findIndex(c => c.id == id);
     if(idx === -1) return;
     if(!confirm("Delete this class?")) return;
     
@@ -896,7 +963,7 @@ window.deleteClass = async function(id) {
 };
 
 window.editExam = function(id) {
-    const ex = exams.find(e => e.id === id);
+    const ex = exams.find(e => e.id == id);
     if(!ex) return;
     document.getElementById('edit-exam-id').value = ex.id;
     document.getElementById('ee-course').value = ex.course;
@@ -908,7 +975,7 @@ window.editExam = function(id) {
 };
 
 window.deleteExam = async function(id) {
-    const idx = exams.findIndex(e => e.id === id);
+    const idx = exams.findIndex(e => e.id == id);
     if(idx === -1) return;
     if(!confirm("Delete this exam?")) return;
 
@@ -929,14 +996,20 @@ window.deleteExam = async function(id) {
 };
 
 window.editTask = function(id) {
-    const t = tasks.find(x => x.id === id);
-    if(!t) return;
+    console.log('editTask called with id:', id);
+    if(!id) { console.error('No ID provided to editTask'); return; }
+    const t = tasks.find(x => x.id == id);
+    if(!t) { console.error('Task not found for id:', id); return; }
+    
+    const modal = document.getElementById('modal-edit-task');
+    if(!modal) { console.error('modal-edit-task not found in DOM'); return; }
+
     document.getElementById('edit-task-id').value = t.id;
-    document.getElementById('et-title').value = t.title;
-    document.getElementById('et-date').value = t.date;
-    document.getElementById('et-time').value = t.time;
+    document.getElementById('et-title').value = t.title || '';
+    document.getElementById('et-date').value = t.date || '';
+    document.getElementById('et-time').value = t.time || '';
     document.getElementById('et-notif').checked = t.remind !== false;
-    document.getElementById('modal-edit-task').classList.remove('hidden');
+    modal.classList.remove('hidden');
 };
 
 window.deleteTask = async function(id) {
@@ -1276,6 +1349,12 @@ function renderTasks() {
 
 
 
+
+
+
+
+
+
     const examBanner = document.getElementById('next-exam-banner');
     if (nextExam) {
         examBanner.innerHTML = `
@@ -1374,6 +1453,7 @@ window.addCourseFromSearch = async function(idx) {
         
         if (!error) {
             classes.push(...data); updateAllViews();
+            syncNativeNotifications();
             document.getElementById('course-search-input').value = '';
             document.getElementById('search-results').innerHTML = '';
             document.getElementById('btn-clear-search').classList.add('hidden');
@@ -1398,76 +1478,73 @@ async function syncNativeNotifications() {
 
         const { LocalNotifications } = window.Capacitor.Plugins;
     
-        // Clear existing notifications
-        const pending = await LocalNotifications.getPending();
-        if (pending.notifications.length > 0) {
-            await LocalNotifications.cancel(pending);
-        }
+    // Clear existing notifications
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications.length > 0) {
+        await LocalNotifications.cancel(pending);
+    }
 
-        const now = new Date();
-        const notifications = [];
-        let id = 1;
+    const now = new Date();
+    const notifications = [];
+    let id = 1;
 
-        // Schedule Classes for the next 7 days
-        classes.forEach(cls => {
-            if (cls.remind === false) return;
-            for (let i = 0; id < 50 && i < 7; i++) {
-                const date = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
-                const dayName = DAYS_OF_WEEK[date.getDay()];
-                if (cls.day === dayName) {
-                    const [h, m] = cls.start_time.split(':').map(Number);
-                    const scheduledTime = new Date(date);
-                    scheduledTime.setHours(h, m, 0, 0);
-                    const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
-                    
-                    if (triggerTime > now) {
-                        notifications.push({
-                            title: 'Class Reminder',
-                            body: `Upcoming: ${cls.course} at ${convertTo12Hour(cls.start_time)}`,
-                            id: id++,
-                            schedule: { at: triggerTime },
-                            channelId: 'reminders'
-                        });
-                    }
+    // Schedule Classes for the next 7 days
+    classes.forEach(cls => {
+        if (cls.remind === false) return;
+        for (let i = 0; id < 50 && i < 7; i++) {
+            const date = new Date(now.getTime() + i * 24 * 60 * 60 * 1000);
+            const dayName = DAYS_OF_WEEK[date.getDay()];
+            if (cls.day === dayName) {
+                const [h, m] = cls.start_time.split(':').map(Number);
+                const scheduledTime = new Date(date);
+                scheduledTime.setHours(h, m, 0, 0);
+                const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
+                
+                if (triggerTime > now) {
+                    notifications.push({
+                        title: 'Class Reminder',
+                        body: `Upcoming: ${cls.course} at ${convertTo12Hour(cls.start_time)}`,
+                        id: id++,
+                        schedule: { at: triggerTime }
+                    });
                 }
             }
-        });
-
-        // Schedule Exams
-        exams.forEach(ex => {
-            if (ex.remind === false) return;
-            const scheduledTime = new Date(ex.date + 'T' + ex.time);
-            const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
-            if (triggerTime > now && id < 60) {
-                notifications.push({
-                    title: 'Exam Reminder',
-                    body: `Upcoming Exam: ${ex.course} at ${convertTo12Hour(ex.time)}`,
-                    id: id++,
-                    schedule: { at: triggerTime },
-                    channelId: 'reminders'
-                });
-            }
-        });
-
-        // Schedule Tasks
-        tasks.forEach(t => {
-            if (t.remind === false) return;
-            const scheduledTime = new Date(t.date + 'T' + t.time);
-            const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
-            if (triggerTime > now && id < 80) {
-                notifications.push({
-                    title: 'Task Reminder',
-                    body: `Upcoming Task: ${t.title} at ${convertTo12Hour(t.time)}`,
-                    id: id++,
-                    schedule: { at: triggerTime },
-                    channelId: 'reminders'
-                });
-            }
-        });
-
-        if (notifications.length > 0) {
-            await LocalNotifications.schedule({ notifications });
         }
+    });
+
+    // Schedule Exams
+    exams.forEach(ex => {
+        if (ex.remind === false) return;
+        const scheduledTime = new Date(ex.date + 'T' + ex.time);
+        const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
+        if (triggerTime > now && id < 60) {
+            notifications.push({
+                title: 'Exam Reminder',
+                body: `Upcoming Exam: ${ex.course} at ${convertTo12Hour(ex.time)}`,
+                id: id++,
+                schedule: { at: triggerTime }
+            });
+        }
+    });
+
+    // Schedule Tasks
+    tasks.forEach(t => {
+        if (t.remind === false) return;
+        const scheduledTime = new Date(t.date + 'T' + t.time);
+        const triggerTime = new Date(scheduledTime.getTime() - reminderLeadTime * 60 * 1000);
+        if (triggerTime > now && id < 80) {
+            notifications.push({
+                title: 'Task Reminder',
+                body: `Upcoming Task: ${t.title} at ${convertTo12Hour(t.time)}`,
+                id: id++,
+                schedule: { at: triggerTime }
+            });
+        }
+    });
+
+    if (notifications.length > 0) {
+        await LocalNotifications.schedule({ notifications });
+    }
     } catch (e) {
         console.warn('Native notification sync failed:', e);
     }
@@ -1789,7 +1866,7 @@ function setupAdminPanel() {
                 if (file.name.endsWith('.csv')) {
                     courses = parsePlannerCSV(new TextDecoder().decode(arrayBuffer));
                 } else {
-                    const json = XLSX.utils.sheet_to_json(XLSX.read(arrayBuffer, { type: 'array' }).Sheets[0]);
+                    const json = XLSX.utils.sheet_to_json(XLSX.read(arrayBuffer, { type: 'array' }).Sheets[0], { raw: false });
                     courses = parsePlannerJSON(json);
                 }
                 await db.from('global_classes').delete().neq('id', 0);
@@ -1821,7 +1898,7 @@ function setupAdminPanel() {
                 if (file.name.endsWith('.csv')) {
                     courses = parsePlannerCSV(new TextDecoder().decode(arrayBuffer));
                 } else {
-                    courses = parsePlannerJSON(XLSX.utils.sheet_to_json(XLSX.read(arrayBuffer, { type: 'array' }).Sheets[0]));
+                    courses = parsePlannerJSON(XLSX.utils.sheet_to_json(XLSX.read(arrayBuffer, { type: 'array' }).Sheets[0], { raw: false }));
                 }
                 await db.from('global_planner_courses').delete().neq('id', 0);
                 for (let i = 0; i < courses.length; i += 500) {
@@ -1982,7 +2059,7 @@ function parseExamExcelJSON(rows) {
 }
 
 function parsePlannerCSV(text) {
-    const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r\n|\n|\r/);
     if (lines.length < 2) return [];
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g,''));
     const courses = {};
@@ -2059,7 +2136,7 @@ async function checkGlobalExams() {
         const { data: existingExams } = await db.from('exams').select('course').eq('user_id', userKey);
         const existingTitles = new Set((existingExams || []).map(e => e.course));
 
-        console.log(`Checking sync: ${myClasses.length} local classes, ${globalExams.length} global exams.`);
+        // console.log(`Checking sync: ${myClasses.length} local classes, ${globalExams.length} global exams.`);
 
         const cleanStr = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
@@ -2128,10 +2205,6 @@ function initNotifToggle() {
             btn.classList.remove('active');
             btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
         }
-        
-        // Also sync the settings toggle if it exists
-        const settingsToggle = document.getElementById('toggle-notifications');
-        if (settingsToggle) settingsToggle.checked = enabled;
     };
 
     updateUI();
@@ -2139,7 +2212,7 @@ function initNotifToggle() {
     btn.addEventListener('click', async () => {
         const currentlyEnabled = localStorage.getItem('notifEnabled') === 'true';
         if (!currentlyEnabled) {
-            if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+            if (window.Capacitor) {
                 const { LocalNotifications } = window.Capacitor.Plugins;
                 const perm = await LocalNotifications.requestPermissions();
                 if (perm.display !== 'granted') {
@@ -2153,7 +2226,57 @@ function initNotifToggle() {
         } else {
             localStorage.setItem('notifEnabled', 'false');
             showToast('Notifications disabled');
-            if (window.Capacitor && window.Capacitor.Plugins.LocalNotifications) {
+            if (window.Capacitor) {
+                const { LocalNotifications } = window.Capacitor.Plugins;
+                const pending = await LocalNotifications.getPending();
+                if (pending.notifications.length > 0) {
+                    await LocalNotifications.cancel(pending);
+                }
+            }
+        }
+        updateUI();
+    });
+}
+
+function initNotifToggle() {
+    const btn = document.getElementById('btn-toggle-notifs');
+    if (!btn) return;
+
+    const updateUI = () => {
+        const enabled = localStorage.getItem('notifEnabled') === 'true';
+        if (enabled) {
+            btn.classList.add('active');
+            btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0"/></svg>';
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        }
+        
+        // Sync the settings toggle if it exists
+        const settingsToggle = document.getElementById('toggle-notifications');
+        if (settingsToggle) settingsToggle.checked = enabled;
+    };
+
+    updateUI();
+
+    btn.addEventListener('click', async () => {
+        const currentlyEnabled = localStorage.getItem('notifEnabled') === 'true';
+        if (!currentlyEnabled) {
+            if (window.Capacitor) {
+                const { LocalNotifications } = window.Capacitor.Plugins;
+                const perm = await LocalNotifications.requestPermissions();
+                if (perm.display !== 'granted') {
+                    showToast('Notification permission denied');
+                    return;
+                }
+            }
+            localStorage.setItem('notifEnabled', 'true');
+            showToast('Notifications enabled');
+            syncNativeNotifications();
+        } else {
+            localStorage.setItem('notifEnabled', 'false');
+            showToast('Notifications disabled');
+            if (window.Capacitor) {
                 const { LocalNotifications } = window.Capacitor.Plugins;
                 const pending = await LocalNotifications.getPending();
                 if (pending.notifications.length > 0) {
@@ -2168,6 +2291,7 @@ function initNotifToggle() {
 function setupNotificationSettings() {
     const reminderSelect = document.getElementById('reminder-minutes');
     if (reminderSelect) {
+        reminderSelect.value = reminderLeadTime;
         reminderSelect.addEventListener('change', (e) => {
             reminderLeadTime = parseInt(e.target.value);
             localStorage.setItem('reminderLeadTime', reminderLeadTime);
@@ -2230,17 +2354,6 @@ function setupNotificationSettings() {
                     const { LocalNotifications } = window.Capacitor.Plugins;
                     const p = await LocalNotifications.getPending();
                     if (p.notifications.length > 0) await LocalNotifications.cancel(p);
-                }
-            }
-            // Update the navbar button state
-            const btn = document.getElementById('btn-toggle-notifs');
-            if (btn) {
-                if (enabled) {
-                    btn.classList.add('active');
-                    btn.innerHTML = '<svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0"/></svg>';
-                } else {
-                    btn.classList.remove('active');
-                    btn.innerHTML = '<svg viewBox="0 0 20 20" fill="none" width="18" height="18"><path d="M10 2a6 6 0 0 0-6 6v3.5l-1.5 2h15L16 11.5V8a6 6 0 0 0-6-6zM8 15a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
                 }
             }
         });

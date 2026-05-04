@@ -1,5 +1,6 @@
 const SUPABASE_URL = 'https://vmmyzuauiscukyapudqc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtbXl6dWF1aXNjdWt5YXB1ZHFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODg1MzAsImV4cCI6MjA5Mjk2NDUzMH0.2LlpdHhzrYnroUbfDZpTtgjP_j_WpsV4MtR7FWJF6XI';
+const APP_VERSION = '1.0.0';
 let db = null;
 let userKey = null;
 let classes = [];
@@ -49,6 +50,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data: { session }, error } = await db.auth.getSession();
         if (session) {
             handleLoginSuccess(session.user);
+        } else {
+            const cachedUser = localStorage.getItem('classify_cached_user');
+            if (cachedUser) handleLoginSuccess(JSON.parse(cachedUser), true);
         }
 
         // Listen for auth changes
@@ -128,15 +132,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-function handleLoginSuccess(user) {
+function handleLoginSuccess(user, isSilent = false) {
     userKey = user.id;
+    localStorage.setItem('classify_cached_user', JSON.stringify(user));
     document.getElementById('auth-overlay').classList.add('hidden');
     if (user.email && user.email.trim().toLowerCase() === 'mubin9516@gmail.com') {
         document.getElementById('sb-admin')?.classList.remove('hidden');
         document.getElementById('btn-admin-top')?.classList.remove('hidden');
         setupAdminPanel();
     }
-    initApp();
+    initApp(isSilent);
     checkGlobalExams();
 }
 
@@ -150,6 +155,18 @@ function setupAuthOverlay() {
         const password = document.getElementById('login-password').value;
         const errEl = document.getElementById('auth-error');
         const btn = document.getElementById('btn-login');
+        const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        
+        if (!validateEmail(email)) {
+            errEl.textContent = 'Please enter a valid email address.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (password.length < 6) {
+            errEl.textContent = 'Password must be at least 6 characters.';
+            errEl.classList.remove('hidden');
+            return;
+        }
         
         btn.textContent = 'Logging in...';
         btn.disabled = true;
@@ -174,7 +191,19 @@ function setupAuthOverlay() {
         const password = document.getElementById('register-password').value;
         const errEl = document.getElementById('auth-error');
         const btn = document.getElementById('btn-register');
+        const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
         
+        if (!validateEmail(email)) {
+            errEl.textContent = 'Please enter a valid email address.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+        if (password.length < 6) {
+            errEl.textContent = 'Password must be at least 6 characters.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
         btn.textContent = 'Creating account...';
         btn.disabled = true;
         
@@ -207,7 +236,7 @@ function switchKeyTab(tabName) {
     document.getElementById('panel-' + tabName).classList.add('active');
 }
 
-async function initApp() {
+async function initApp(isSilent = false) {
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('settings-share-id-display').textContent = userKey;
     
@@ -224,7 +253,7 @@ async function initApp() {
         updateAllViews();
     } catch (e) { console.error('Error loading cache', e); }
 
-    showLoader();
+    if (!isSilent) showLoader();
     // Fetch from Supabase in background
     await Promise.all([
         fetchClasses(),
@@ -249,6 +278,7 @@ async function initApp() {
 
     updateAllViews();
     syncNativeNotifications();
+    checkForUpdates();
     setInterval(updateTimers, 1000);
     setInterval(checkReminders, 30000);
     setInterval(syncNativeNotifications, 10 * 60 * 1000); // Sync every 10 mins
@@ -274,6 +304,7 @@ async function fetchClasses() {
         if (!error) {
             classes = data || [];
             localStorage.setItem(`classes_${userKey}`, JSON.stringify(classes));
+            updateAllViews();
         }
     } catch(e) { console.error(e); }
 }
@@ -285,6 +316,7 @@ async function fetchExams() {
         if (!error) {
             exams = data || [];
             localStorage.setItem(`exams_${userKey}`, JSON.stringify(exams));
+            updateAllViews();
         }
     } catch(e) { console.error(e); }
 }
@@ -296,6 +328,7 @@ async function fetchTasks() {
         if (!error) {
             tasks = data || [];
             localStorage.setItem(`tasks_${userKey}`, JSON.stringify(tasks));
+            updateAllViews();
         }
     } catch(e) { console.error(e); }
 }
@@ -701,6 +734,9 @@ window.addCourseToPlanner = async function(idx) {
         const remind = document.getElementById('f-notif').checked;
         const activeDays = Array.from(document.querySelectorAll('.day-pill.active')).map(p => p.dataset.day);
         
+        if (!course.trim()) { showToast('Course name is required.'); return; }
+        if (!start_time || !end_time) { showToast('Start and end times are required.'); return; }
+        if (start_time >= end_time) { showToast('End time must be after start time.'); return; }
         if (activeDays.length === 0) { showToast('Please select at least one day.'); return; }
         
         // Optimistic UI
@@ -746,6 +782,10 @@ window.addCourseToPlanner = async function(idx) {
         const notes = document.getElementById('e-notes').value;
         const remind = document.getElementById('e-notif').checked;
         
+        if (!course.trim()) { showToast('Course name is required.'); return; }
+        if (!date) { showToast('Exam date is required.'); return; }
+        if (!time) { showToast('Exam time is required.'); return; }
+        
         // Optimistic
         const tempExam = { id: 'temp_' + Date.now(), user_id: userKey, course, date, time, notes, remind, isTemp: true };
         exams.push(tempExam);
@@ -757,7 +797,7 @@ window.addCourseToPlanner = async function(idx) {
         showToast('Exam added!');
 
         // Sync
-        const { data, error } = await db.from('exams').insert([{ user_id: userKey, course, date, time, notes, remind }]).select();
+        const { data, error } = await db.from('exams').insert([{ user_id: userKey, course, date, time, notes }]).select();
         if (!error) {
             exams = exams.filter(ex => ex.id !== tempExam.id);
             exams.push(data[0]);
@@ -774,6 +814,10 @@ window.addCourseToPlanner = async function(idx) {
         const time = document.getElementById('t-time').value;
         const remind = document.getElementById('t-notif').checked;
         
+        if (!title.trim()) { showToast('Task title is required.'); return; }
+        if (!date) { showToast('Task date is required.'); return; }
+        if (!time) { showToast('Task time is required.'); return; }
+        
         // Optimistic
         const tempTask = { id: 'temp_' + Date.now(), user_id: userKey, title, date, time, remind, isTemp: true };
         tasks.push(tempTask);
@@ -785,7 +829,7 @@ window.addCourseToPlanner = async function(idx) {
         showToast('Task added!');
 
         // Sync
-        const { data, error } = await db.from('tasks').insert([{ user_id: userKey, title, date, time, remind }]).select();
+        const { data, error } = await db.from('tasks').insert([{ user_id: userKey, title, date, time }]).select();
         if (!error) {
             tasks = tasks.filter(t => t.id !== tempTask.id);
             tasks.push(data[0]);
@@ -804,6 +848,10 @@ window.addCourseToPlanner = async function(idx) {
         const type = document.getElementById('ec-type').value;
         const room = document.getElementById('ec-room').value;
         const remind = document.getElementById('ec-notif').checked;
+        
+        if (!course.trim()) { showToast('Course name is required.'); return; }
+        if (!start_time || !end_time) { showToast('Start and end times are required.'); return; }
+        if (start_time >= end_time) { showToast('End time must be after start time.'); return; }
 
         showLoader();
         const { data, error } = await db.from('classes').update({ course, start_time, end_time, type, room, remind }).eq('id', id).select();
@@ -824,9 +872,13 @@ window.addCourseToPlanner = async function(idx) {
         const time = document.getElementById('ee-time').value;
         const notes = document.getElementById('ee-notes').value;
         const remind = document.getElementById('ex-notif').checked;
+        
+        if (!course.trim()) { showToast('Course name is required.'); return; }
+        if (!date) { showToast('Exam date is required.'); return; }
+        if (!time) { showToast('Exam time is required.'); return; }
 
         showLoader();
-        const { data, error } = await db.from('exams').update({ course, date, time, notes, remind }).eq('id', id).select();
+        const { data, error } = await db.from('exams').update({ course, date, time, notes }).eq('id', id).select();
         if (!error) {
             const idx = exams.findIndex(ex => ex.id == id);
             if(idx > -1) exams[idx] = data[0];
@@ -843,9 +895,13 @@ window.addCourseToPlanner = async function(idx) {
         const date = document.getElementById('et-date').value;
         const time = document.getElementById('et-time').value;
         const remind = document.getElementById('et-notif').checked;
+        
+        if (!title.trim()) { showToast('Task title is required.'); return; }
+        if (!date) { showToast('Task date is required.'); return; }
+        if (!time) { showToast('Task time is required.'); return; }
 
         showLoader();
-        const { data, error } = await db.from('tasks').update({ title, date, time, remind }).eq('id', id).select();
+        const { data, error } = await db.from('tasks').update({ title, date, time }).eq('id', id).select();
         if (!error) {
             const idx = tasks.findIndex(t => t.id == id);
             if(idx > -1) tasks[idx] = data[0];
@@ -1944,6 +2000,29 @@ function setupAdminPanel() {
         }
         hideLoader();
     });
+
+    // 6. ROLLOUT UPDATE
+    const rolloutBtn = document.getElementById('btn-admin-rollout');
+    if (rolloutBtn) {
+        rolloutBtn.addEventListener('click', async () => {
+            const nextVersion = prompt("Enter new version number (current: " + APP_VERSION + ")", APP_VERSION);
+            if (!nextVersion || nextVersion === APP_VERSION) return;
+            
+            if (!confirm(`Rollout update to v${nextVersion}? All users will be prompted to refresh.`)) return;
+            
+            showLoader();
+            try {
+                // Upsert min_version in app_config
+                const { error } = await db.from('app_config').upsert({ key: 'min_version', value: nextVersion }, { onConflict: 'key' });
+                if (error) throw error;
+                showToast(`Update v${nextVersion} rolled out!`);
+            } catch (err) {
+                console.error(err);
+                showToast('Error: ' + err.message + '. (Make sure "app_config" table exists)');
+            }
+            hideLoader();
+        });
+    }
 }
 
 function parseExamExcelJSON(rows) {
@@ -2286,6 +2365,48 @@ function initNotifToggle() {
         }
         updateUI();
     });
+}
+
+async function checkForUpdates() {
+    if (!db) return;
+    try {
+        const { data, error } = await db.from('app_config').select('value').eq('key', 'min_version').single();
+        if (!error && data && data.value) {
+            const remoteVersion = data.value;
+            if (isOutdated(APP_VERSION, remoteVersion)) {
+                showUpdateOverlay(remoteVersion);
+            }
+        }
+    } catch (e) { console.log('Update check skipped:', e.message); }
+}
+
+function isOutdated(current, required) {
+    const curr = current.split('.').map(Number);
+    const req = required.split('.').map(Number);
+    for (let i = 0; i < Math.max(curr.length, req.length); i++) {
+        const c = curr[i] || 0;
+        const r = req[i] || 0;
+        if (c < r) return true;
+        if (c > r) return false;
+    }
+    return false;
+}
+
+function showUpdateOverlay(newVer) {
+    const overlay = document.createElement('div');
+    overlay.className = 'key-overlay';
+    overlay.style.zIndex = '10000';
+    overlay.innerHTML = `
+        <div class="key-card" style="text-align:center; padding:40px 20px;">
+            <div style="font-size:3rem; margin-bottom:20px;">🚀</div>
+            <h2 style="margin-bottom:10px;">Update Required</h2>
+            <p style="color:var(--text2); margin-bottom:24px; font-size:0.9rem;">
+                A critical update (v${newVer}) is available.<br>Please refresh to continue using Classify.
+            </p>
+            <button onclick="location.reload(true)" class="btn-primary btn-full">Refresh Now</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 }
 
 function setupNotificationSettings() {
